@@ -32,11 +32,13 @@ class HappyForexEA(object):
     '''
  
     #===============================================================================
-    def __init__(self):
+    def __init__(self, parameters_completed):
         '''
         Constructor
         '''
-        
+        # get the total parameters for running EA
+        self.PARAMETERS_COMPLETED = copy_string_array(parameters_completed)
+
         # new variables which will be changed in the class
         self.total_win = float(DEFAULT_NUMBER) 
         self.total_loss = float(DEFAULT_NUMBER)
@@ -51,14 +53,14 @@ class HappyForexEA(object):
         self.mode_spread = float(DEFAULT_NUMBER)
         self.order_ID_dict = {}  # a dictionary (as a hash-map) for storing ID
             
-        self.SpreadMax = SPREADMAX
-        self.Hour_of_trading_from = HOUR_OF_TRADING_FROM
-        self.Hour_of_trading_to = HOUR_OF_TRADING_TO
-        self.Time_of_closing_in_hours = TIME_OF_CLOSING_IN_HOURS
-        self.Time_of_closing_in_minutes = TIME_OF_CLOSING_IN_MINUTES
-        self.Time_closing_trades = TIME_CLOSING_TRADES
-        self.Lots = LOTS
-        self.Slippage = SLIPPAGE
+        self.SpreadMax = float(DEFAULT_NUMBER)
+        self.Hour_of_trading_from = DEFAULT_NUMBER
+        self.Hour_of_trading_to = DEFAULT_NUMBER
+        self.Time_of_closing_in_hours = DEFAULT_NUMBER
+        self.Time_of_closing_in_minutes = DEFAULT_NUMBER
+        self.Time_closing_trades = False
+        self.Lots = float(DEFAULT_NUMBER)
+        self.Slippage = float(DEFAULT_NUMBER)
         
         self.balance = DEPOSIT
         self.CurrentProfit = float(DEFAULT_NUMBER)
@@ -72,6 +74,7 @@ class HappyForexEA(object):
         
         # Create a dictionary (as a hash-map) for storing Opened and Pending orders with KEY is OrderID
         self.DATE_DATA_DICT = {} 
+        
         
         # old variables from EA
         self.NDigits = DIGITS
@@ -113,35 +116,6 @@ class HappyForexEA(object):
         self.clear = False
         
         
-#         ObjectsDeleteAll();   //SKIP from original EA
-#         Comment("");          //SKIP from original EA
-        
-        
-        # Adjust for 4/5 digit brokers
-        if BrokerIs5Digit_0(): 
-            self.PipValue = float(10)
-            self.my_point *= float(10)
-            self.SpreadMax *= float(10)
-        
-        # Adjust the time following local time
-        self.Hour_of_trading_from += GMT_OFFSET
-        if(self.Hour_of_trading_from >= HOURS_OF_ADAY):
-            self.Hour_of_trading_from -= HOURS_OF_ADAY
-        if(self.Hour_of_trading_from < DEFAULT_NUMBER):
-            self.Hour_of_trading_from += HOURS_OF_ADAY 
-                
-        self.Hour_of_trading_to += GMT_OFFSET
-        if(self.Hour_of_trading_to >= HOURS_OF_ADAY):
-            self.Hour_of_trading_to -= HOURS_OF_ADAY
-        if(self.Hour_of_trading_to < DEFAULT_NUMBER):
-            self.Hour_of_trading_to += HOURS_OF_ADAY 
-        
-        self.Time_of_closing_in_hours += GMT_OFFSET
-        if(self.Time_of_closing_in_hours >= HOURS_OF_ADAY):
-            self.Time_of_closing_in_hours -= HOURS_OF_ADAY
-        if(self.Time_of_closing_in_hours < DEFAULT_NUMBER):
-            self.Time_of_closing_in_hours += HOURS_OF_ADAY
-
     #===============================================================================
     def CalculateProfit_5(self, entry_price, exit_price, order_type):
         ''' Calculates the profit or loss of a position in the home currency of the account. 
@@ -1372,6 +1346,44 @@ class HappyForexEA(object):
     def run(self):
         ''' EA running '''
         
+#         ObjectsDeleteAll();   //SKIP from original EA
+#         Comment("");          //SKIP from original EA
+        
+        # set up all parameters
+        self.SpreadMax = SPREADMAX
+        self.Hour_of_trading_from = HOUR_OF_TRADING_FROM
+        self.Hour_of_trading_to = HOUR_OF_TRADING_TO
+        self.Time_of_closing_in_hours = TIME_OF_CLOSING_IN_HOURS
+        self.Time_of_closing_in_minutes = TIME_OF_CLOSING_IN_MINUTES
+        self.Time_closing_trades = TIME_CLOSING_TRADES
+        self.Lots = LOTS
+        self.Slippage = SLIPPAGE
+        
+        # Adjust for 4/5 digit brokers
+        if BrokerIs5Digit_0(): 
+            self.PipValue = float(10)
+            self.my_point *= float(10)
+            self.SpreadMax *= float(10)
+        
+        # Adjust the time following local time
+        self.Hour_of_trading_from += GMT_OFFSET
+        if(self.Hour_of_trading_from >= HOURS_OF_ADAY):
+            self.Hour_of_trading_from -= HOURS_OF_ADAY
+        if(self.Hour_of_trading_from < DEFAULT_NUMBER):
+            self.Hour_of_trading_from += HOURS_OF_ADAY 
+                
+        self.Hour_of_trading_to += GMT_OFFSET
+        if(self.Hour_of_trading_to >= HOURS_OF_ADAY):
+            self.Hour_of_trading_to -= HOURS_OF_ADAY
+        if(self.Hour_of_trading_to < DEFAULT_NUMBER):
+            self.Hour_of_trading_to += HOURS_OF_ADAY 
+        
+        self.Time_of_closing_in_hours += GMT_OFFSET
+        if(self.Time_of_closing_in_hours >= HOURS_OF_ADAY):
+            self.Time_of_closing_in_hours -= HOURS_OF_ADAY
+        if(self.Time_of_closing_in_hours < DEFAULT_NUMBER):
+            self.Time_of_closing_in_hours += HOURS_OF_ADAY
+        
         # save the first day 
         first_day = HISTORY_DATA[DEFAULT_NUMBER][DATE_COL_INDEX] + '_' + HISTORY_DATA[DEFAULT_NUMBER][TIME_COL_INDEX]
         fprevious_date = convert_string_day2float(first_day, MARKET_TIME_STANDARD, DATETIME_FORMAT)
@@ -1470,8 +1482,116 @@ class HappyForexEA(object):
     
     
 #===============================================================================
-happyforex_EA_instance = HappyForexEA()
+# create an instance EA for running 
+happyforex_EA_instance = HappyForexEA(DEFAULT_PARAMETERS_DATA)
 
+# create all parameters for running EA
+NAME_EA = str(happyforex_EA_instance.PARAMETERS_COMPLETED[name_ea_row_index]
+                      [VALUE_COL_INDEX])
+MAGIC = int(happyforex_EA_instance.PARAMETERS_COMPLETED[magic_row_index]
+            [VALUE_COL_INDEX])
+FILTERSPREAD = bool(str(happyforex_EA_instance.PARAMETERS_COMPLETED[filterspread_row_index]
+                        [VALUE_COL_INDEX]).title())
+SPREADMAX = float(happyforex_EA_instance.PARAMETERS_COMPLETED[spreadmax_row_index]
+                  [VALUE_COL_INDEX])
+A = str(happyforex_EA_instance.PARAMETERS_COMPLETED[a_row_index]
+          [VALUE_COL_INDEX])
+MONDAY = bool(str(happyforex_EA_instance.PARAMETERS_COMPLETED[monday_row_index]
+               [VALUE_COL_INDEX]).title())
+TUESDAY = bool(str(happyforex_EA_instance.PARAMETERS_COMPLETED[tuesday_row_index]
+                [VALUE_COL_INDEX]).title())
+WEDNESDAY = bool(str(happyforex_EA_instance.PARAMETERS_COMPLETED[wednesday_row_index]
+                  [VALUE_COL_INDEX]).title())
+THURSDAY = bool(str(happyforex_EA_instance.PARAMETERS_COMPLETED[thursday_row_index]
+                 [VALUE_COL_INDEX]).title())
+FRIDAY = bool(str(happyforex_EA_instance.PARAMETERS_COMPLETED[friday_row_index]
+               [VALUE_COL_INDEX]).title())
+SATURDAY = bool(str(happyforex_EA_instance.PARAMETERS_COMPLETED[saturday_row_index
+                                         ][VALUE_COL_INDEX]).title())
+SUNDAY = bool(str(happyforex_EA_instance.PARAMETERS_COMPLETED[sunday_row_index]
+               [VALUE_COL_INDEX]).title())
+B = str(happyforex_EA_instance.PARAMETERS_COMPLETED[b_row_index]
+          [VALUE_COL_INDEX])
+TRADING_24H = bool(str(happyforex_EA_instance.PARAMETERS_COMPLETED[trading_24h_row_index]
+                    [VALUE_COL_INDEX]).title())
+GMT_OFFSET = int(happyforex_EA_instance.PARAMETERS_COMPLETED[gmt_offset_row_index]
+                 [VALUE_COL_INDEX])
+HOUR_OF_TRADING_FROM = int(happyforex_EA_instance.PARAMETERS_COMPLETED[hour_of_trading_from_row_index]
+                           [VALUE_COL_INDEX])
+HOUR_OF_TRADING_TO = int(happyforex_EA_instance.PARAMETERS_COMPLETED[hour_of_trading_to_row_index]
+                         [VALUE_COL_INDEX])
+USE_ORDERSLIMIT = bool(str(happyforex_EA_instance.PARAMETERS_COMPLETED[use_orderslimit_row_index]
+                        [VALUE_COL_INDEX]).title())
+OPENORDERSLIMITDAY = int(happyforex_EA_instance.PARAMETERS_COMPLETED[openorderslimitday_row_index]
+                           [VALUE_COL_INDEX])
+C = str(happyforex_EA_instance.PARAMETERS_COMPLETED[c_row_index]
+          [VALUE_COL_INDEX])
+TIME_CLOSING_TRADES = bool(str(happyforex_EA_instance.PARAMETERS_COMPLETED[time_closing_trades_row_index]
+                            [VALUE_COL_INDEX]).title())
+TIME_OF_CLOSING_IN_HOURS = int(happyforex_EA_instance.PARAMETERS_COMPLETED[time_of_closing_in_hours_row_index]
+                               [VALUE_COL_INDEX])
+TIME_OF_CLOSING_IN_MINUTES = int(happyforex_EA_instance.PARAMETERS_COMPLETED[time_of_closing_in_minutes_row_index]
+                                 [VALUE_COL_INDEX])
+D = str(happyforex_EA_instance.PARAMETERS_COMPLETED[d_row_index]
+          [VALUE_COL_INDEX])
+PROFIT = bool(str(happyforex_EA_instance.PARAMETERS_COMPLETED[profit_row_index]
+               [VALUE_COL_INDEX]).title())
+PROFIT_ALL_ORDERS = float(happyforex_EA_instance.PARAMETERS_COMPLETED[profit_all_orders_row_index]
+                          [VALUE_COL_INDEX])
+E = str(happyforex_EA_instance.PARAMETERS_COMPLETED[e_row_index]
+          [VALUE_COL_INDEX])
+OPENORDERSLIMIT = int(happyforex_EA_instance.PARAMETERS_COMPLETED[openorderslimit_row_index]
+                        [VALUE_COL_INDEX])
+SINGLEORDERSL = float(happyforex_EA_instance.PARAMETERS_COMPLETED[singleordersl_row_index]
+                      [VALUE_COL_INDEX])
+SINGLEORDERTP = float(happyforex_EA_instance.PARAMETERS_COMPLETED[singleordertp_row_index]
+                      [VALUE_COL_INDEX])
+F = str(happyforex_EA_instance.PARAMETERS_COMPLETED[f_row_index]
+          [VALUE_COL_INDEX])
+ARRANGEMENTS_OF_TRADES = float(happyforex_EA_instance.PARAMETERS_COMPLETED[arrangements_of_trades_row_index]
+                               [VALUE_COL_INDEX])
+G = str(happyforex_EA_instance.PARAMETERS_COMPLETED[g_row_index]
+          [VALUE_COL_INDEX])
+LOTS = float(happyforex_EA_instance.PARAMETERS_COMPLETED[lots_row_index]
+             [VALUE_COL_INDEX])
+SLIPPAGE = float(happyforex_EA_instance.PARAMETERS_COMPLETED[slippage_row_index]
+                 [VALUE_COL_INDEX])
+H = str(happyforex_EA_instance.PARAMETERS_COMPLETED[h_row_index]
+          [VALUE_COL_INDEX])
+SET_UP_OF_LOSS = bool(str(happyforex_EA_instance.PARAMETERS_COMPLETED[set_up_of_loss_row_index]
+                       [VALUE_COL_INDEX]).title())
+AMOUNT_OF_LOSS = float(happyforex_EA_instance.PARAMETERS_COMPLETED[amount_of_loss_row_index]
+                       [VALUE_COL_INDEX])
+I = str(happyforex_EA_instance.PARAMETERS_COMPLETED[i_row_index]
+          [VALUE_COL_INDEX])
+CLOSING_OF_ALL_TRADES = bool(str(happyforex_EA_instance.PARAMETERS_COMPLETED[closing_of_all_trades_row_index]
+                              [VALUE_COL_INDEX]).title())
+J = str(happyforex_EA_instance.PARAMETERS_COMPLETED[j_row_index]
+          [VALUE_COL_INDEX])
+USENEWSFILTER = bool(str(happyforex_EA_instance.PARAMETERS_COMPLETED[usenewsfilter_row_index]
+                      [VALUE_COL_INDEX]).title())
+MINSBEFORENEWS = int(happyforex_EA_instance.PARAMETERS_COMPLETED[minsbeforenews_row_index]
+                       [VALUE_COL_INDEX])
+MINSAFTERNEWS = int(happyforex_EA_instance.PARAMETERS_COMPLETED[minsafternews_row_index]
+                      [VALUE_COL_INDEX])
+NEWSIMPACT = int(happyforex_EA_instance.PARAMETERS_COMPLETED[newsimpact_row_index]
+                   [VALUE_COL_INDEX])
+K = str(happyforex_EA_instance.PARAMETERS_COMPLETED[k_row_index]
+          [VALUE_COL_INDEX])
+FILTERING = bool(str(happyforex_EA_instance.PARAMETERS_COMPLETED[filtering_row_index]
+                  [VALUE_COL_INDEX]).title())
+L = str(happyforex_EA_instance.PARAMETERS_COMPLETED[l_row_index]
+          [VALUE_COL_INDEX])
+AUTOEQUITYMANAGER = bool(str(happyforex_EA_instance.PARAMETERS_COMPLETED[autoequitymanager_row_index]
+                          [VALUE_COL_INDEX]).title())
+EQUITYGAINPERCENT = float(happyforex_EA_instance.PARAMETERS_COMPLETED[equitygainpercent_row_index]
+                          [VALUE_COL_INDEX])
+SAFEEQUITYSTOPOUT = bool(str(happyforex_EA_instance.PARAMETERS_COMPLETED[safeequitystopout_row_index]
+                          [VALUE_COL_INDEX]).title())
+SAFEEQUITYRISK = float(happyforex_EA_instance.PARAMETERS_COMPLETED[safeequityrisk_row_index]
+                       [VALUE_COL_INDEX])
+
+# running EA
 happyforex_EA_instance.run()
   
 # Write out other data for reference

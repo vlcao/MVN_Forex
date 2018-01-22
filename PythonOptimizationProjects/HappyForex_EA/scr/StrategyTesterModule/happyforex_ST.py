@@ -45,7 +45,7 @@ if __name__ == '__main__':
      
     # Calculate fitness of each individual
     print('#============================== Calculate fitness of each individual ==============================')
-    happyforexGA.population.calculate_fittest(happyforex_EA_instance)
+    happyforexGA.population.calculate_fittest()
      
     # Get the individual with highest fitness ==> retrieve the highest fitness for the population
     print('#============================== Get the individual with highest fitness ==============================')

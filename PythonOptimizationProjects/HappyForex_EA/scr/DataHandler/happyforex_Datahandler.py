@@ -429,6 +429,7 @@ SCR_DIR_PATH = convert_backflash2forwardflash(str(os.path.dirname(os.getcwd())))
 FOLDER_DATA_INPUT = SCR_DIR_PATH + '/DataHandler/data/input/'
 FOLDER_DATA_OUTPUT = SCR_DIR_PATH + '/DataHandler/data/output/'
 
+
 FILENAME_HISTORY_DATA = SYMBOL + '_M1_1y_2003.csv'
 FILENAME_BEST_PARAMETERS = SYMBOL + '_whole_best_parameters.csv'
 FILENAME_PARAMETER = 'default_parameters.csv'
@@ -580,112 +581,112 @@ autoequitymanager_row_index = 48
 equitygainpercent_row_index = 49
 safeequitystopout_row_index = 50
 safeequityrisk_row_index = 51
-
-
-NAME_EA = str(DEFAULT_PARAMETERS_DATA[name_ea_row_index]
-              [VALUE_COL_INDEX])
-MAGIC = int(DEFAULT_PARAMETERS_DATA[magic_row_index]
-            [VALUE_COL_INDEX])
-FILTERSPREAD = bool(str(DEFAULT_PARAMETERS_DATA[filterspread_row_index]
-                        [VALUE_COL_INDEX]).title())
-SPREADMAX = float(DEFAULT_PARAMETERS_DATA[spreadmax_row_index]
-                  [VALUE_COL_INDEX])
-A = str(DEFAULT_PARAMETERS_DATA[a_row_index]
-          [VALUE_COL_INDEX])
-MONDAY = bool(str(DEFAULT_PARAMETERS_DATA[monday_row_index]
-               [VALUE_COL_INDEX]).title())
-TUESDAY = bool(str(DEFAULT_PARAMETERS_DATA[tuesday_row_index]
-                [VALUE_COL_INDEX]).title())
-WEDNESDAY = bool(str(DEFAULT_PARAMETERS_DATA[wednesday_row_index]
-                  [VALUE_COL_INDEX]).title())
-THURSDAY = bool(str(DEFAULT_PARAMETERS_DATA[thursday_row_index]
-                 [VALUE_COL_INDEX]).title())
-FRIDAY = bool(str(DEFAULT_PARAMETERS_DATA[friday_row_index]
-               [VALUE_COL_INDEX]).title())
-SATURDAY = bool(str(DEFAULT_PARAMETERS_DATA[saturday_row_index
-                                         ][VALUE_COL_INDEX]).title())
-SUNDAY = bool(str(DEFAULT_PARAMETERS_DATA[sunday_row_index]
-               [VALUE_COL_INDEX]).title())
-B = str(DEFAULT_PARAMETERS_DATA[b_row_index]
-          [VALUE_COL_INDEX])
-TRADING_24H = bool(str(DEFAULT_PARAMETERS_DATA[trading_24h_row_index]
-                    [VALUE_COL_INDEX]).title())
-GMT_OFFSET = int(DEFAULT_PARAMETERS_DATA[gmt_offset_row_index]
-                 [VALUE_COL_INDEX])
-HOUR_OF_TRADING_FROM = int(DEFAULT_PARAMETERS_DATA[hour_of_trading_from_row_index]
-                           [VALUE_COL_INDEX])
-HOUR_OF_TRADING_TO = int(DEFAULT_PARAMETERS_DATA[hour_of_trading_to_row_index]
-                         [VALUE_COL_INDEX])
-USE_ORDERSLIMIT = bool(str(DEFAULT_PARAMETERS_DATA[use_orderslimit_row_index]
-                        [VALUE_COL_INDEX]).title())
-OPENORDERSLIMITDAY = int(DEFAULT_PARAMETERS_DATA[openorderslimitday_row_index]
-                           [VALUE_COL_INDEX])
-C = str(DEFAULT_PARAMETERS_DATA[c_row_index]
-          [VALUE_COL_INDEX])
-TIME_CLOSING_TRADES = bool(str(DEFAULT_PARAMETERS_DATA[time_closing_trades_row_index]
-                            [VALUE_COL_INDEX]).title())
-TIME_OF_CLOSING_IN_HOURS = int(DEFAULT_PARAMETERS_DATA[time_of_closing_in_hours_row_index]
-                               [VALUE_COL_INDEX])
-TIME_OF_CLOSING_IN_MINUTES = int(DEFAULT_PARAMETERS_DATA[time_of_closing_in_minutes_row_index]
-                                 [VALUE_COL_INDEX])
-D = str(DEFAULT_PARAMETERS_DATA[d_row_index]
-          [VALUE_COL_INDEX])
-PROFIT = bool(str(DEFAULT_PARAMETERS_DATA[profit_row_index]
-               [VALUE_COL_INDEX]).title())
-PROFIT_ALL_ORDERS = float(DEFAULT_PARAMETERS_DATA[profit_all_orders_row_index]
-                          [VALUE_COL_INDEX])
-E = str(DEFAULT_PARAMETERS_DATA[e_row_index]
-          [VALUE_COL_INDEX])
-OPENORDERSLIMIT = int(DEFAULT_PARAMETERS_DATA[openorderslimit_row_index]
-                        [VALUE_COL_INDEX])
-SINGLEORDERSL = float(DEFAULT_PARAMETERS_DATA[singleordersl_row_index]
-                      [VALUE_COL_INDEX])
-SINGLEORDERTP = float(DEFAULT_PARAMETERS_DATA[singleordertp_row_index]
-                      [VALUE_COL_INDEX])
-F = str(DEFAULT_PARAMETERS_DATA[f_row_index]
-          [VALUE_COL_INDEX])
-ARRANGEMENTS_OF_TRADES = float(DEFAULT_PARAMETERS_DATA[arrangements_of_trades_row_index]
-                               [VALUE_COL_INDEX])
-G = str(DEFAULT_PARAMETERS_DATA[g_row_index]
-          [VALUE_COL_INDEX])
-LOTS = float(DEFAULT_PARAMETERS_DATA[lots_row_index]
-             [VALUE_COL_INDEX])
-SLIPPAGE = float(DEFAULT_PARAMETERS_DATA[slippage_row_index]
-                 [VALUE_COL_INDEX])
-H = str(DEFAULT_PARAMETERS_DATA[h_row_index]
-          [VALUE_COL_INDEX])
-SET_UP_OF_LOSS = bool(str(DEFAULT_PARAMETERS_DATA[set_up_of_loss_row_index]
-                       [VALUE_COL_INDEX]).title())
-AMOUNT_OF_LOSS = float(DEFAULT_PARAMETERS_DATA[amount_of_loss_row_index]
-                       [VALUE_COL_INDEX])
-I = str(DEFAULT_PARAMETERS_DATA[i_row_index]
-          [VALUE_COL_INDEX])
-CLOSING_OF_ALL_TRADES = bool(str(DEFAULT_PARAMETERS_DATA[closing_of_all_trades_row_index]
-                              [VALUE_COL_INDEX]).title())
-J = str(DEFAULT_PARAMETERS_DATA[j_row_index]
-          [VALUE_COL_INDEX])
-USENEWSFILTER = bool(str(DEFAULT_PARAMETERS_DATA[usenewsfilter_row_index]
-                      [VALUE_COL_INDEX]).title())
-MINSBEFORENEWS = int(DEFAULT_PARAMETERS_DATA[minsbeforenews_row_index]
-                       [VALUE_COL_INDEX])
-MINSAFTERNEWS = int(DEFAULT_PARAMETERS_DATA[minsafternews_row_index]
-                      [VALUE_COL_INDEX])
-NEWSIMPACT = int(DEFAULT_PARAMETERS_DATA[newsimpact_row_index]
-                   [VALUE_COL_INDEX])
-K = str(DEFAULT_PARAMETERS_DATA[k_row_index]
-          [VALUE_COL_INDEX])
-FILTERING = bool(str(DEFAULT_PARAMETERS_DATA[filtering_row_index]
-                  [VALUE_COL_INDEX]).title())
-L = str(DEFAULT_PARAMETERS_DATA[l_row_index]
-          [VALUE_COL_INDEX])
-AUTOEQUITYMANAGER = bool(str(DEFAULT_PARAMETERS_DATA[autoequitymanager_row_index]
-                          [VALUE_COL_INDEX]).title())
-EQUITYGAINPERCENT = float(DEFAULT_PARAMETERS_DATA[equitygainpercent_row_index]
-                          [VALUE_COL_INDEX])
-SAFEEQUITYSTOPOUT = bool(str(DEFAULT_PARAMETERS_DATA[safeequitystopout_row_index]
-                          [VALUE_COL_INDEX]).title())
-SAFEEQUITYRISK = float(DEFAULT_PARAMETERS_DATA[safeequityrisk_row_index]
-                       [VALUE_COL_INDEX])
+ 
+# 
+# NAME_EA = str(DEFAULT_PARAMETERS_DATA[name_ea_row_index]
+#               [VALUE_COL_INDEX])
+# MAGIC = int(DEFAULT_PARAMETERS_DATA[magic_row_index]
+#             [VALUE_COL_INDEX])
+# FILTERSPREAD = bool(str(DEFAULT_PARAMETERS_DATA[filterspread_row_index]
+#                         [VALUE_COL_INDEX]).title())
+# SPREADMAX = float(DEFAULT_PARAMETERS_DATA[spreadmax_row_index]
+#                   [VALUE_COL_INDEX])
+# A = str(DEFAULT_PARAMETERS_DATA[a_row_index]
+#           [VALUE_COL_INDEX])
+# MONDAY = bool(str(DEFAULT_PARAMETERS_DATA[monday_row_index]
+#                [VALUE_COL_INDEX]).title())
+# TUESDAY = bool(str(DEFAULT_PARAMETERS_DATA[tuesday_row_index]
+#                 [VALUE_COL_INDEX]).title())
+# WEDNESDAY = bool(str(DEFAULT_PARAMETERS_DATA[wednesday_row_index]
+#                   [VALUE_COL_INDEX]).title())
+# THURSDAY = bool(str(DEFAULT_PARAMETERS_DATA[thursday_row_index]
+#                  [VALUE_COL_INDEX]).title())
+# FRIDAY = bool(str(DEFAULT_PARAMETERS_DATA[friday_row_index]
+#                [VALUE_COL_INDEX]).title())
+# SATURDAY = bool(str(DEFAULT_PARAMETERS_DATA[saturday_row_index
+#                                          ][VALUE_COL_INDEX]).title())
+# SUNDAY = bool(str(DEFAULT_PARAMETERS_DATA[sunday_row_index]
+#                [VALUE_COL_INDEX]).title())
+# B = str(DEFAULT_PARAMETERS_DATA[b_row_index]
+#           [VALUE_COL_INDEX])
+# TRADING_24H = bool(str(DEFAULT_PARAMETERS_DATA[trading_24h_row_index]
+#                     [VALUE_COL_INDEX]).title())
+# GMT_OFFSET = int(DEFAULT_PARAMETERS_DATA[gmt_offset_row_index]
+#                  [VALUE_COL_INDEX])
+# HOUR_OF_TRADING_FROM = int(DEFAULT_PARAMETERS_DATA[hour_of_trading_from_row_index]
+#                            [VALUE_COL_INDEX])
+# HOUR_OF_TRADING_TO = int(DEFAULT_PARAMETERS_DATA[hour_of_trading_to_row_index]
+#                          [VALUE_COL_INDEX])
+# USE_ORDERSLIMIT = bool(str(DEFAULT_PARAMETERS_DATA[use_orderslimit_row_index]
+#                         [VALUE_COL_INDEX]).title())
+# OPENORDERSLIMITDAY = int(DEFAULT_PARAMETERS_DATA[openorderslimitday_row_index]
+#                            [VALUE_COL_INDEX])
+# C = str(DEFAULT_PARAMETERS_DATA[c_row_index]
+#           [VALUE_COL_INDEX])
+# TIME_CLOSING_TRADES = bool(str(DEFAULT_PARAMETERS_DATA[time_closing_trades_row_index]
+#                             [VALUE_COL_INDEX]).title())
+# TIME_OF_CLOSING_IN_HOURS = int(DEFAULT_PARAMETERS_DATA[time_of_closing_in_hours_row_index]
+#                                [VALUE_COL_INDEX])
+# TIME_OF_CLOSING_IN_MINUTES = int(DEFAULT_PARAMETERS_DATA[time_of_closing_in_minutes_row_index]
+#                                  [VALUE_COL_INDEX])
+# D = str(DEFAULT_PARAMETERS_DATA[d_row_index]
+#           [VALUE_COL_INDEX])
+# PROFIT = bool(str(DEFAULT_PARAMETERS_DATA[profit_row_index]
+#                [VALUE_COL_INDEX]).title())
+# PROFIT_ALL_ORDERS = float(DEFAULT_PARAMETERS_DATA[profit_all_orders_row_index]
+#                           [VALUE_COL_INDEX])
+# E = str(DEFAULT_PARAMETERS_DATA[e_row_index]
+#           [VALUE_COL_INDEX])
+# OPENORDERSLIMIT = int(DEFAULT_PARAMETERS_DATA[openorderslimit_row_index]
+#                         [VALUE_COL_INDEX])
+# SINGLEORDERSL = float(DEFAULT_PARAMETERS_DATA[singleordersl_row_index]
+#                       [VALUE_COL_INDEX])
+# SINGLEORDERTP = float(DEFAULT_PARAMETERS_DATA[singleordertp_row_index]
+#                       [VALUE_COL_INDEX])
+# F = str(DEFAULT_PARAMETERS_DATA[f_row_index]
+#           [VALUE_COL_INDEX])
+# ARRANGEMENTS_OF_TRADES = float(DEFAULT_PARAMETERS_DATA[arrangements_of_trades_row_index]
+#                                [VALUE_COL_INDEX])
+# G = str(DEFAULT_PARAMETERS_DATA[g_row_index]
+#           [VALUE_COL_INDEX])
+# LOTS = float(DEFAULT_PARAMETERS_DATA[lots_row_index]
+#              [VALUE_COL_INDEX])
+# SLIPPAGE = float(DEFAULT_PARAMETERS_DATA[slippage_row_index]
+#                  [VALUE_COL_INDEX])
+# H = str(DEFAULT_PARAMETERS_DATA[h_row_index]
+#           [VALUE_COL_INDEX])
+# SET_UP_OF_LOSS = bool(str(DEFAULT_PARAMETERS_DATA[set_up_of_loss_row_index]
+#                        [VALUE_COL_INDEX]).title())
+# AMOUNT_OF_LOSS = float(DEFAULT_PARAMETERS_DATA[amount_of_loss_row_index]
+#                        [VALUE_COL_INDEX])
+# I = str(DEFAULT_PARAMETERS_DATA[i_row_index]
+#           [VALUE_COL_INDEX])
+# CLOSING_OF_ALL_TRADES = bool(str(DEFAULT_PARAMETERS_DATA[closing_of_all_trades_row_index]
+#                               [VALUE_COL_INDEX]).title())
+# J = str(DEFAULT_PARAMETERS_DATA[j_row_index]
+#           [VALUE_COL_INDEX])
+# USENEWSFILTER = bool(str(DEFAULT_PARAMETERS_DATA[usenewsfilter_row_index]
+#                       [VALUE_COL_INDEX]).title())
+# MINSBEFORENEWS = int(DEFAULT_PARAMETERS_DATA[minsbeforenews_row_index]
+#                        [VALUE_COL_INDEX])
+# MINSAFTERNEWS = int(DEFAULT_PARAMETERS_DATA[minsafternews_row_index]
+#                       [VALUE_COL_INDEX])
+# NEWSIMPACT = int(DEFAULT_PARAMETERS_DATA[newsimpact_row_index]
+#                    [VALUE_COL_INDEX])
+# K = str(DEFAULT_PARAMETERS_DATA[k_row_index]
+#           [VALUE_COL_INDEX])
+# FILTERING = bool(str(DEFAULT_PARAMETERS_DATA[filtering_row_index]
+#                   [VALUE_COL_INDEX]).title())
+# L = str(DEFAULT_PARAMETERS_DATA[l_row_index]
+#           [VALUE_COL_INDEX])
+# AUTOEQUITYMANAGER = bool(str(DEFAULT_PARAMETERS_DATA[autoequitymanager_row_index]
+#                           [VALUE_COL_INDEX]).title())
+# EQUITYGAINPERCENT = float(DEFAULT_PARAMETERS_DATA[equitygainpercent_row_index]
+#                           [VALUE_COL_INDEX])
+# SAFEEQUITYSTOPOUT = bool(str(DEFAULT_PARAMETERS_DATA[safeequitystopout_row_index]
+#                           [VALUE_COL_INDEX]).title())
+# SAFEEQUITYRISK = float(DEFAULT_PARAMETERS_DATA[safeequityrisk_row_index]
+#                        [VALUE_COL_INDEX])
  
 #===============================================================================
 #===============================================================================

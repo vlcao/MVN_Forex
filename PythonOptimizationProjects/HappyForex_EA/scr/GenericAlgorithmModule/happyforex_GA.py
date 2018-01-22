@@ -9,8 +9,8 @@ import random
 import sys
 from DataHandler.happyforex_Datahandler import DEFAULT_NUMBER, MAX_LOTS, NET_PROFIT, MAX_FITNESS, \
                                     OPTIMIZED_PARAMETERS_DATA, OPTIMIZE_PARAMETERS_LIST, \
-                                    copy_string_array, permutation_count, \
-    VALUE_COL_INDEX, DEFAULT_SECOND_NUMBER
+                                    VALUE_COL_INDEX, DEFAULT_SECOND_NUMBER, DEFAULT_PARAMETERS_DATA, \
+                                    copy_string_array, permutation_count, merge_2parametes_array_data
 import EAModule
 
 logger = logging.getLogger(__name__)
@@ -36,8 +36,9 @@ class Individual(object):
         self.fitness = DEFAULT_NUMBER
         self.individual_ID = DEFAULT_NUMBER
        
-        # copy optimize-needed parameters for each individual to become its genes
+        # copy optimize-needed and default parameters for each individual to become its genes
         self.genes = copy_string_array(OPTIMIZED_PARAMETERS_DATA)
+        self.genes_completed = copy_string_array(DEFAULT_PARAMETERS_DATA)
         
     #===============================================================================
     def create_random_genes(self):
@@ -213,7 +214,9 @@ class Individual(object):
             self.fitness = round(50 * (self.net_profit / NET_PROFIT 
                                  + self.total_win / MAX_WIN_TOTAL_TRADE), 2)
         '''
-        happyforex_EA_instance = EAModule.happyforex_EA()
+        
+        self.genes_completed = merge_2parametes_array_data(self.genes_completed, self.genes)
+        happyforex_EA_instance = EAModule.happyforex_EA(self.genes_completed)
         
         # for testing in the meantime ==> randomly pick the value of HAPPY FOREX EA
         self.net_profit = happyforex_EA_instance.run_nothing()
