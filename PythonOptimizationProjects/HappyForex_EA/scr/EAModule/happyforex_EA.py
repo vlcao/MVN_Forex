@@ -1591,13 +1591,13 @@ SAFEEQUITYSTOPOUT = bool(str(happyforex_EA_instance.PARAMETERS_COMPLETED[safeequ
 SAFEEQUITYRISK = float(happyforex_EA_instance.PARAMETERS_COMPLETED[safeequityrisk_row_index]
                        [VALUE_COL_INDEX])
 
-# running EA
-happyforex_EA_instance.run()
-  
-# Write out other data for reference
-write_array2csv_with_delimiter_no_header(OPTIMIZED_PARAMETERS_DATA, FOLDER_DATA_OUTPUT + FILENAME_OPTIMIZE_PARAMETER, '=')
-write_dict2csv_no_header(happyforex_EA_instance.ORDER_CLOSED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_CLOSED_HISTORY)
-write_dict2csv_no_header(happyforex_EA_instance.ORDER_OPENED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_OPENED_HISTORY)
+# # running EA
+# happyforex_EA_instance.run()
+#   
+# # Write out other data for reference
+# write_array2csv_with_delimiter_no_header(OPTIMIZED_PARAMETERS_DATA, FOLDER_DATA_OUTPUT + FILENAME_OPTIMIZE_PARAMETER, '=')
+# write_dict2csv_no_header(happyforex_EA_instance.ORDER_CLOSED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_CLOSED_HISTORY)
+# write_dict2csv_no_header(happyforex_EA_instance.ORDER_OPENED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_OPENED_HISTORY)
 
 
         

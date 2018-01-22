@@ -11,7 +11,7 @@ from DataHandler.happyforex_Datahandler import DEFAULT_NUMBER, MAX_LOTS, NET_PRO
                                     OPTIMIZED_PARAMETERS_DATA, OPTIMIZE_PARAMETERS_LIST, \
                                     VALUE_COL_INDEX, DEFAULT_SECOND_NUMBER, DEFAULT_PARAMETERS_DATA, \
                                     copy_string_array, permutation_count, merge_2parametes_array_data
-import EAModule
+from EAModule.happyforex_EA import HappyForexEA
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +73,10 @@ class Individual(object):
         # --> Lots ==> random 0.01 to 0.1
         random_num = random.uniform(float(self.genes[row][col]), MAX_LOTS)
         self.genes[row][col] = round(random_num, 2)  
+        
+        
+        # create the whole completed parameters for running EA
+        self.genes_completed = merge_2parametes_array_data(self.genes_completed, self.genes)
     
     #===============================================================================
     '''
@@ -107,6 +111,10 @@ class Individual(object):
         row += 1
         # --> Lots
         self.genes[row][col] = manual_parameters_list[row]   
+    
+    
+        # create the whole completed parameters for running EA
+        self.genes_completed = merge_2parametes_array_data(self.genes_completed, self.genes)
     
     #===============================================================================
     def create_ind_uniqueID(self, dictionary_IDlist):
@@ -196,14 +204,20 @@ class Individual(object):
                 self.genes[mutation_point][VALUE_COL_INDEX] = OPTIMIZED_PARAMETERS_DATA[mutation_point][VALUE_COL_INDEX]
     
     
+        # create the whole completed parameters for running EA
+        self.genes_completed = merge_2parametes_array_data(self.genes_completed, self.genes)
+    
     #===============================================================================
     # Calculate fitness
     # TODO: CUSTOMISE THIS FUNCTION, in the meantime ==> randomly pick the value of HAPPY FOREX EA
     def cal_fitness(self):
         self.fitness = DEFAULT_NUMBER
         
-        ''' divide the total fitness (100) to 2 part (50/50)
+        ''' 
         OLD CODE:
+            # divide the total fitness (100) to 2 part (50/50)
+            (self.net_profit, self.total_win) = happyforex_EA_instance.run()
+            
             # adjust the net_profit & total_win
             if self.net_profit > NET_PROFIT:
                 self.net_profit = NET_PROFIT
@@ -216,11 +230,10 @@ class Individual(object):
         '''
         
         self.genes_completed = merge_2parametes_array_data(self.genes_completed, self.genes)
-        happyforex_EA_instance = EAModule.happyforex_EA(self.genes_completed)
+        happyforex_EA_instance = HappyForexEA(self.genes_completed)
         
         # for testing in the meantime ==> randomly pick the value of HAPPY FOREX EA
         self.net_profit = happyforex_EA_instance.run_nothing()
-#         (self.net_profit, self.total_win) = self.happyforex_EA_instance.run()
         
         # calculate fitness for the HappyForex EA
         if self.net_profit > NET_PROFIT:
@@ -356,8 +369,6 @@ class HappyForexGenericAlgorithm(object):
             self.second_fittest_ind.genes[i] = temp
             i += 1
         
-            
-            
         # Check the special variable of Time_of_closing_in_hours 
         # --> only change value of Time_of_closing_in_hours ==> random 5 or 6 when Time_closing_trades==True/1
         row_time_closing_index = 3
@@ -387,6 +398,11 @@ class HappyForexGenericAlgorithm(object):
         new_id_second_fittest = '_' . join([str(row[VALUE_COL_INDEX]) for row in self.second_fittest_ind.genes])
         self.second_fittest_ind.individual_ID = new_id_second_fittest
         
+        
+        # create the whole completed parameters for running EA
+        self.fittest_ind.genes_completed = merge_2parametes_array_data(self.fittest_ind.genes_completed, self.fittest_ind.genes)
+        self.second_fittest_ind.genes_completed = merge_2parametes_array_data(self.second_fittest_ind.genes_completed, self.second_fittest_ind.genes)
+    
 
     #===============================================================================
     # Mutation
@@ -424,7 +440,6 @@ class HappyForexGenericAlgorithm(object):
         
         # update individual ID
         self.fittest_ind.individual_ID = id_fittest
-        
     
         
         # Select a random mutation point for second_fittest_ind from 0 to 7 (less than the length of OPTIMIZE_PARAMETERS_LIST)
@@ -455,6 +470,7 @@ class HappyForexGenericAlgorithm(object):
             self.second_fittest_ind.flip_value(mutation_point_second_fittest)
             
             id_second_fittest = '_' . join([str(row[VALUE_COL_INDEX]) for row in self.second_fittest_ind.genes])
+        
         
         # update individual ID
         self.second_fittest_ind.individual_ID = id_second_fittest

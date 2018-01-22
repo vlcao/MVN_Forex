@@ -13,9 +13,9 @@ from GenericAlgorithmModule.happyforex_GA import HappyForexGenericAlgorithm
 from DataHandler.happyforex_Datahandler import DEFAULT_NUMBER, MAX_FITNESS, FOLDER_DATA_OUTPUT, SYMBOL, TIME_STAMP, \
                                     FILENAME_HIGHEST_FITNESS, FILENAME_BEST_SOLUTION, FILENAME_BEST_PARAMETERS, \
                                     FILENAME_POPULATION_INITIAL, FILENAME_POPULATION_FINAL, \
-                                    DEFAULT_PARAMETERS_DATA, OPTIMIZED_PARAMETERS_DATA, FILENAME_OPTIMIZE_PARAMETER, \
+                                    OPTIMIZED_PARAMETERS_DATA, FILENAME_OPTIMIZE_PARAMETER, \
                                     FILENAME_ORDER_CLOSED_HISTORY, FILENAME_ORDER_OPENED_HISTORY, \
-                                    write_dict2csv_no_header, write_array2csv_with_delimiter_no_header, merge_2parametes_array_data
+                                    write_dict2csv_no_header, write_array2csv_with_delimiter_no_header
 from EAModule.happyforex_EA import happyforex_EA_instance
 
 logger = logging.getLogger(__name__)
@@ -113,14 +113,9 @@ if __name__ == '__main__':
     print("Genes: %s" % happyforexGA.fittest_ind.genes);
     write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes, folder_output + TIME_STAMP + FILENAME_BEST_SOLUTION, '=')
              
-             
+    
     # Write out the whole best parameters (converted back 1/0 in the data into True/False)
-    best_parameters_data = merge_2parametes_array_data(DEFAULT_PARAMETERS_DATA, OPTIMIZED_PARAMETERS_DATA)
-#     for i in range(len(best_parameters_data)):
-#         for j in range(len(best_parameters_data[i])):
-#             best_parameters_data[i][j] = str(best_parameters_data[i][j]).replace("1", "true")
-#             best_parameters_data[i][j] = str(best_parameters_data[i][j]).replace("0", "false")
-    write_array2csv_with_delimiter_no_header(best_parameters_data, folder_output + TIME_STAMP + FILENAME_BEST_PARAMETERS, '=')
+    write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes_completed, folder_output + TIME_STAMP + FILENAME_BEST_PARAMETERS, '=')
           
           
     # Write the population final to a CSV file for reference
