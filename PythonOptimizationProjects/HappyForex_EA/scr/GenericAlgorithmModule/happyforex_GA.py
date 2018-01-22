@@ -499,8 +499,11 @@ class HappyForexGenericAlgorithm(object):
         self.added_offstring_ind = self.get_fittest_offspring()
        
         # Replace least fitness individual by the highest fitness offspring
+        del self.population.individuals[least_fittest_index] 
         self.population.individuals[least_fittest_index] = self.added_offstring_ind
         
         # update individuals_ID_dict
-        self.population.individuals_ID_dict[self.added_offstring_ind.individual_ID] = self.population.individuals_ID_dict.pop(self.least_fittest_ind.individual_ID)
+        value_least_fittest_ind = self.population.individuals_ID_dict[self.least_fittest_ind.individual_ID]
+        del self.population.individuals_ID_dict[self.least_fittest_ind.individual_ID]
+        self.population.individuals_ID_dict[self.added_offstring_ind.individual_ID] = value_least_fittest_ind
 
