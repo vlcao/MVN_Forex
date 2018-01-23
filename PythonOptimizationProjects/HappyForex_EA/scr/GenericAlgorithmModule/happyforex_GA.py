@@ -13,7 +13,7 @@ from DataHandler.happyforex_Datahandler import DEFAULT_NUMBER, MAX_LOTS, NET_PRO
                                     copy_string_array, permutation_count, merge_2parametes_array_data
 from EAModule.happyforex_EA import HappyForexEA
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 ################################################################################
 ##########################           CLASS           ###########################
@@ -39,6 +39,15 @@ class Individual(object):
         # copy optimize-needed and default parameters for each individual to become its genes
         self.genes = copy_string_array(OPTIMIZED_PARAMETERS_DATA)
         self.genes_completed = copy_string_array(DEFAULT_PARAMETERS_DATA)
+        
+        # Create a dictionary (as a hash-map) for storing Closed and Deleted orders with KEY is OrderID
+        self.ORDER_CLOSED_DICT = {} 
+        
+        # Create a dictionary (as a hash-map) for storing Opened and Pending orders with KEY is OrderID
+        self.ORDER_OPENED_DICT = {} 
+        
+        # Create a dictionary (as a hash-map) for storing Opened and Pending orders with KEY is OrderID
+        self.DATE_DATA_DICT = {} 
         
     #===============================================================================
     def create_random_genes(self):
@@ -232,15 +241,14 @@ class Individual(object):
         self.genes_completed = merge_2parametes_array_data(self.genes_completed, self.genes)
         happyforex_EA_instance = HappyForexEA(self.genes_completed)
         
-        # for testing in the meantime ==> randomly pick the value of HAPPY FOREX EA
-        self.net_profit = happyforex_EA_instance.run_nothing()
-#         self.net_profit = happyforex_EA_instance.run()
+#         self.net_profit = happyforex_EA_instance.run_nothing()     # for testing only: randomly pick the value of HAPPYFOREX EA
+        self.net_profit = happyforex_EA_instance.run()
         
         # calculate fitness for the HappyForex EA
         if self.net_profit > NET_PROFIT:
             self.net_profit = MAX_FITNESS
         else:
-            self.fitness = round(100 * self.net_profit / NET_PROFIT, 2)
+            self.fitness = round(100 * abs(self.net_profit) / NET_PROFIT, 2)
         
         
 ################################################################################
@@ -257,12 +265,13 @@ class Population(object):
         '''
         self.logger = logging.getLogger(__name__)
         
-#         # TODO: For testing only
-#         self.popSize = 5
+        # TODO: For testing only
+        self.popSize = 5
         
-        # reduce 1 for size of permutation due to the condition True/False of Time_closing_trades
-        letters = digits = len(OPTIMIZE_PARAMETERS_LIST) - 1  
-        self.popSize = permutation_count(letters, digits)
+        # TODO: UNCOMMENT when finishing testing
+#         # reduce 1 for size of permutation due to the condition True/False of Time_closing_trades
+#         letters = digits = len(OPTIMIZE_PARAMETERS_LIST) - 1  
+#         self.popSize = permutation_count(letters, digits)
 
         self.fittest = DEFAULT_NUMBER
         self.individuals = [Individual()] * self.popSize
@@ -383,7 +392,8 @@ class HappyForexGenericAlgorithm(object):
         # Select a random crossover point, from 0 to 6 (make sure less than the length of OPTIMIZE_PARAMETERS_LIST)
         cross_over_point = random.randint(DEFAULT_NUMBER, len(OPTIMIZE_PARAMETERS_LIST) - 2);
         print("cross_over_point: %s" % cross_over_point)
-
+        log.info("cross_over_point: %s" % cross_over_point)
+        
         # Swap values among parents
         i = DEFAULT_NUMBER
         while i <= cross_over_point:
@@ -439,6 +449,7 @@ class HappyForexGenericAlgorithm(object):
         if mutation_point_fittest == row_Time_of_closing_in_hours:
             mutation_point_fittest -= 1
         print("mutation_point_fittest: %s" % mutation_point_fittest) 
+        log.info("mutation_point_fittest: %s" % mutation_point_fittest) 
         
         # Flip values at the mutation point
         self.fittest_ind.flip_value(mutation_point_fittest)
@@ -455,7 +466,8 @@ class HappyForexGenericAlgorithm(object):
             if mutation_point_fittest == row_Time_of_closing_in_hours:
                 mutation_point_fittest -= 1
             print("mutation_point_fittest in loops: %s" % mutation_point_fittest) 
-        
+            log.info("mutation_point_fittest in loops: %s" % mutation_point_fittest) 
+            
             # Flip values at the mutation point
             self.fittest_ind.flip_value(mutation_point_fittest)
             
@@ -472,7 +484,8 @@ class HappyForexGenericAlgorithm(object):
         if mutation_point_second_fittest == row_Time_of_closing_in_hours:
             mutation_point_second_fittest -= 1
         print("mutation_point_second_fittest: %s" % mutation_point_second_fittest) 
-        
+        log.info("mutation_point_second_fittest: %s" % mutation_point_second_fittest) 
+            
         # Flip values at the mutation point
         self.second_fittest_ind.flip_value(mutation_point_second_fittest)
     
@@ -488,7 +501,8 @@ class HappyForexGenericAlgorithm(object):
             if mutation_point_second_fittest == row_Time_of_closing_in_hours:
                 mutation_point_second_fittest -= 1
             print("mutation_point_second_fittest in loops: %s" % mutation_point_second_fittest) 
-        
+            log.info("mutation_point_second_fittest in loops: %s" % mutation_point_second_fittest) 
+            
             # Flip values at the mutation point
             self.second_fittest_ind.flip_value(mutation_point_second_fittest)
             

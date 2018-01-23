@@ -15,7 +15,7 @@ from os import path, remove
 from decimal import Decimal
 from math import factorial as f
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 #===============================================================================
 def convert_backflash2forwardflash(backflash_path):
@@ -127,7 +127,7 @@ def float_checker(number):
     
     if (flag_float == False):
         print('This is NOT a float number')
-        logger.info('This is NOT a float number')
+        log.info('This is NOT a float number')
         
     return flag_float
 
@@ -143,7 +143,7 @@ def integer_checker(number):
     
     if (flag_int == False):
         print('This is NOT a integer number')
-        logger.info('This is NOT a integer number')
+        log.info('This is NOT a integer number')
     
     return flag_int
 
@@ -253,28 +253,28 @@ def display_an_array_with_delimiter(array_out, delimiter):
         for i in range(out_length):
             sMyArray = [str(j) for j in array_out[i]]
             print(delimiter . join(sMyArray))
-            logger.info(delimiter . join(sMyArray))
+            log.info(delimiter . join(sMyArray))
     else:
         # display 20 first items
         for i in range(20):
             sMyArray = [str(j) for j in array_out[i]]
             print(delimiter . join(sMyArray))
-            logger.info(delimiter . join(sMyArray))
+            log.info(delimiter . join(sMyArray))
             
         print('...    ...    ...    ...    ...    ...    ...')
-        logger.info('...    ...    ...    ...    ...    ...    ...')
+        log.info('...    ...    ...    ...    ...    ...    ...')
         
         # display 20 last items
         i = out_length - 20
         while i < out_length:
             sMyArray = [str(j) for j in array_out[i]]
             print(delimiter . join(sMyArray))
-            logger.info(delimiter . join(sMyArray))
+            log.info(delimiter . join(sMyArray))
             i += 1
         
         # print the summary
         print('[%s rows x %s columns]' % (out_length, len(array_out[DEFAULT_NUMBER])))
-        logger.info('[%s rows x %s columns]' % (out_length, len(array_out[DEFAULT_NUMBER])))
+        log.info('[%s rows x %s columns]' % (out_length, len(array_out[DEFAULT_NUMBER])))
         
 #===============================================================================
 ''' Display dictionary with the input delimiter (ex: '=' or ',' or '/' etc.) '''
@@ -283,7 +283,7 @@ def display_an_dict_with_delimiter(dict_out, delimiter):
     # display dictionary with iterating over items returning key, value tuples
     for key, value in dict_out.iteritems():  
         print('%s' % str(key) + delimiter + '%s' % str(value))
-        logger.info('%s' % str(key) + delimiter + '%s' % str(value))
+        log.info('%s' % str(key) + delimiter + '%s' % str(value))
 
 #===============================================================================
 ''' Compare 2 times with a standard time. '''
@@ -361,7 +361,7 @@ def order_delete(self, row_index, array_data):
         return new_array_data
     else:
         print("There's NO row %s in data." % row_index)
-        logger.info("There's NO row %s in data." % row_index)
+        log.info("There's NO row %s in data." % row_index)
         
 
 #===============================================================================
@@ -384,7 +384,7 @@ def max_order(self, num):
         return(False)
     else:
         print("ERROR ==> The ords_in_a_day > OPENORDERSLIMITDAY")
-        logger.info("ERROR ==> The ords_in_a_day > OPENORDERSLIMITDAY")
+        log.info("ERROR ==> The ords_in_a_day > OPENORDERSLIMITDAY")
         
 
 #===============================================================================
@@ -458,8 +458,8 @@ OPTIMIZE_PARAMETERS_LIST = ['FilterSpread', 'Friday', 'OpenOrdersLimitDay', 'Tim
 
 print('===============================================================================')
 print("==> Load HISTORY_DATA: %s ..." % (FOLDER_DATA_INPUT + FILENAME_HISTORY_DATA))
-logger.info('===============================================================================')
-logger.info("==> Load HISTORY_DATA: %s ..." % (FOLDER_DATA_INPUT + FILENAME_HISTORY_DATA))
+log.info('===============================================================================')
+log.info("==> Load HISTORY_DATA: %s ..." % (FOLDER_DATA_INPUT + FILENAME_HISTORY_DATA))
 # Create HISTORY_DATA with CSV file
 HISTORY_DATA = load_csv2array(FOLDER_DATA_INPUT + FILENAME_HISTORY_DATA)
 display_an_array_with_delimiter(HISTORY_DATA, '    ')
@@ -467,8 +467,8 @@ display_an_array_with_delimiter(HISTORY_DATA, '    ')
 
 print("==> Load DEFAULT_PARAMETERS_DATA: %s ..." % (FOLDER_DATA_INPUT + FILENAME_PARAMETER))
 print('===============================================================================')
-logger.info("==> Load DEFAULT_PARAMETERS_DATA: %s ..." % (FOLDER_DATA_INPUT + FILENAME_PARAMETER))
-logger.info('===============================================================================')
+log.info("==> Load DEFAULT_PARAMETERS_DATA: %s ..." % (FOLDER_DATA_INPUT + FILENAME_PARAMETER))
+log.info('===============================================================================')
 # Create DEFAULT_PARAMETERS_DATA with CSV file
 DEFAULT_PARAMETERS_DATA = load_csv2array(FOLDER_DATA_INPUT + FILENAME_PARAMETER)
 display_an_array_with_delimiter(DEFAULT_PARAMETERS_DATA, '=')
@@ -477,8 +477,8 @@ display_an_array_with_delimiter(DEFAULT_PARAMETERS_DATA, '=')
 
 print("==> Create optimized_parameters data: %s ..." % (FOLDER_DATA_OUTPUT + FILENAME_OPTIMIZE_PARAMETER))
 print('===============================================================================')
-logger.info("==> Create optimized_parameters data: %s ..." % (FOLDER_DATA_OUTPUT + FILENAME_OPTIMIZE_PARAMETER))
-logger.info('===============================================================================')
+log.info("==> Create optimized_parameters data: %s ..." % (FOLDER_DATA_OUTPUT + FILENAME_OPTIMIZE_PARAMETER))
+log.info('===============================================================================')
 # Create OPTIMIZED_PARAMETERS_DATA
 OPTIMIZED_PARAMETERS_DATA = get_subset_data(DEFAULT_PARAMETERS_DATA, OPTIMIZE_PARAMETERS_LIST)
 display_an_array_with_delimiter(OPTIMIZED_PARAMETERS_DATA, '=')
@@ -525,7 +525,7 @@ VOLUME_COL_INDEX = 4
 DIGITS = digit_of_symbol(float(HISTORY_DATA[DEFAULT_NUMBER][BID_COL_INDEX]))
 POINT = point_of_symbol(float(HISTORY_DATA[DEFAULT_NUMBER][BID_COL_INDEX]))
 print('===============================================================================')
-logger.info('===============================================================================')
+log.info('===============================================================================')
 
 #===============================================================================
 #===============================================================================

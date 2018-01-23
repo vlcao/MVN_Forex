@@ -11,15 +11,14 @@ from datetime import datetime
 from DataHandler.happyforex_Datahandler import DIGITS, DEFAULT_NUMBER, DEPOSIT, DEFAULT_SECOND_NUMBER, POINT, ONE_LOT_VALUE, COMMISSION, \
     DATETIME_FORMAT, MARKET_TIME_STANDARD, BALANCE_COL_INDEX, HISTORY_DATA, BID_COL_INDEX, ASK_COL_INDEX, \
     ORDER_TYPE_COL_INDEX, PRICE_COL_INDEX, TIME_COL_INDEX, LOTS_COL_INDEX, LEVERAGE, ORDER_ID_COL_INDEX, HOURS_OF_ADAY, \
-    FOLDER_DATA_OUTPUT, FILENAME_ORDER_CLOSED_HISTORY, FILENAME_ORDER_OPENED_HISTORY, FILENAME_DATE_DICT, \
-    DEFAULT_PARAMETERS_DATA, VALUE_COL_INDEX, OP_SELL, OP_BUY, OP_SELLLIMIT, OP_BUYLIMIT, MINUTES_OF_ANHOUR, DATE_COL_INDEX, PROFIT_COL_INDEX, \
-    FILENAME_OPTIMIZE_PARAMETER, OPTIMIZED_PARAMETERS_DATA, NET_PROFIT, \
-    copy_string_array, convert_string_day2float, convert_string_time2float, convert_string_datetime2float, \
-    write_dict2csv_no_header, float_checker, write_array2csv_with_delimiter_no_header
+    FOLDER_DATA_OUTPUT, FILENAME_ORDER_CLOSED_HISTORY, FILENAME_ORDER_OPENED_HISTORY, FILENAME_DATE_DICT, NET_PROFIT, \
+    VALUE_COL_INDEX, OP_SELL, OP_BUY, OP_SELLLIMIT, OP_BUYLIMIT, MINUTES_OF_ANHOUR, DATE_COL_INDEX, PROFIT_COL_INDEX, \
+    convert_string_day2float, convert_string_time2float, convert_string_datetime2float, \
+    write_dict2csv_no_header, float_checker, \
+    write_array2csv_with_delimiter_no_header, copy_string_array, \
+    DEFAULT_PARAMETERS_DATA, FILENAME_OPTIMIZE_PARAMETER, OPTIMIZED_PARAMETERS_DATA 
     
-
-logger = logging.getLogger(__name__)
-
+log = logging.getLogger(__name__)
 
 #===============================================================================
 def BrokerIs5Digit_0():
@@ -511,10 +510,12 @@ class HappyForexEA(object):
             if (order[ORDER_TYPE_COL_INDEX] != "" and float_checker(float(order[ORDER_TYPE_COL_INDEX]))):
                 return float(order[ORDER_TYPE_COL_INDEX])
             else:
-                print("There is NO type for this order")
+                # print("There is NO type for this order")
+                log.info("There is NO type for this order")
                 return -1.00
         else:
-                print("There is NO data. Data size = 0")
+                # print("There is NO data. Data size = 0")
+                log.info("There is NO data. Data size = 0")
                 return -1.00
     
     #===============================================================================
@@ -527,7 +528,8 @@ class HappyForexEA(object):
 #             print("Oder %s has been deleted." % order_id)
             return True
         else:
-            print("There's NO %s in data. Data is the same as before deleting." % order_id)
+            # print("There's NO %s in data. Data is the same as before deleting." % order_id)
+            log.info("There's NO %s in data. Data is the same as before deleting." % order_id)
             return False
         
     #===============================================================================
@@ -536,7 +538,8 @@ class HappyForexEA(object):
     
         # add the order if it's NOT existed in the data
         if (order_id in dict_data):
-            print("There's the oder %s in data already." % order_id)
+            # print("There's the oder %s in data already." % order_id)
+            log.info("There's the oder %s in data already." % order_id)
             return False
         else:
             # add order to the data
@@ -563,19 +566,22 @@ class HappyForexEA(object):
             if (entry_price <= exit_price):
                 flag_order_closed = True
             else:
-                print("Error closing order OP_BUY %s as: entry_price<=exit_price (%s<=%s)" % (order_id, entry_price, exit_price))
-            
+                # print("Error closing order OP_BUY %s as: entry_price<=exit_price (%s<=%s)" % (order_id, entry_price, exit_price))
+                log.info("Error closing order OP_BUY %s as: entry_price<=exit_price (%s<=%s)" % (order_id, entry_price, exit_price))
+                
         elif (order_type == OP_SELL):
             exit_price = self.ask_price
             
             if (entry_price >= exit_price):
                 flag_order_closed = True
             else:
-                print("Error closing order OP_SELL %s %s as: entry_price>=exit_price (%s>=%s)" % (order_id, entry_price, exit_price))
-            
+                # print("Error closing order OP_SELL %s %s as: entry_price>=exit_price (%s>=%s)" % (order_id, entry_price, exit_price))
+                log.info("Error closing order OP_SELL %s %s as: entry_price>=exit_price (%s>=%s)" % (order_id, entry_price, exit_price))
+                
         else:
-            print("This order %s not a BUY or SELL order!" % order_id)
-            
+            # print("This order %s not a BUY or SELL order!" % order_id)
+            log.info("This order %s not a BUY or SELL order!" % order_id)
+                
         # when the order can be closed
         if (flag_order_closed):
         
@@ -603,8 +609,9 @@ class HappyForexEA(object):
                 flag_added = self.OrderAdd_10(order_id, new_closed_order, self.ORDER_CLOSED_DICT)
                 
                 if (flag_added == False):
-                    print("Error closing order %s as cannot add into Closed and Deleted orders pool." % order_id)
-            
+                    # print("Error closing order %s as cannot add into Closed and Deleted orders pool." % order_id)
+                    log.info("Error closing order %s as cannot add into Closed and Deleted orders pool." % order_id)
+                    
             
     #===============================================================================
     def DeletePendingOrder19_3(self):
@@ -732,8 +739,9 @@ class HappyForexEA(object):
             else:
                 max_number = float_num_2
         else:
-            print("Either or both of two numbers is not a float number")
-                
+            # print("Either or both of two numbers is not a float number")
+            log.info("Either or both of two numbers is not a float number")
+                       
         return max_number
     
     #===============================================================================
@@ -765,7 +773,8 @@ class HappyForexEA(object):
             
             return float(str_normalized_num)
         else:
-            print("Cannot normalize the number.")
+            # print("Cannot normalize the number.")
+            log.info("Cannot normalize the number.")
             return float_num
     
     #===============================================================================
@@ -783,7 +792,8 @@ class HappyForexEA(object):
         # ORDER_OPENED_DICT = {order_id: ['Date', 'Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']}
         
         if (order_type != OP_BUYLIMIT and order_type != OP_SELLLIMIT):
-            print("This is not a Pending order OP_BUYLIMIT or OP_SELLLIMIT. Its type is %s." % (order_id, order_type))
+            # print("This is not a Pending order OP_BUYLIMIT or OP_SELLLIMIT. Its type is %s." % (order_id, order_type))
+            log.info("This is not a Pending order OP_BUYLIMIT or OP_SELLLIMIT. Its type is %s." % (order_id, order_type))
             return False
         # create a pending order OP_BUYLIMIT or OP_SELLLIMIT
         else:
@@ -845,7 +855,8 @@ class HappyForexEA(object):
         
         # inform the result after placing the pending order OP_BUYLIMIT
         if (ticket == False):
-            print("OrderSend_9() error for OP_BUYLIMIT %s" % order_id)
+            # print("OrderSend_9() error for OP_BUYLIMIT %s" % order_id)
+            log.info("OrderSend_9() error for OP_BUYLIMIT %s" % order_id)
 #         else:
 #             print("Successfully placed the Pending order OP_BUYLIMIT %s." % order_id)
             
@@ -883,7 +894,8 @@ class HappyForexEA(object):
         
         # inform the result after placing the pending order OP_SELLLIMIT
         if (ticket == False):
-            print("OrderSend_9() error for OP_SELLLIMIT %s" % order_id)
+            # print("OrderSend_9() error for OP_SELLLIMIT %s" % order_id)
+            log.info("OrderSend_9() error for OP_SELLLIMIT %s" % order_id)
 #         else:
 #             print("Successfully placed the Pending order OP_SELLLIMIT %s." % order_id)
         
@@ -1011,7 +1023,8 @@ class HappyForexEA(object):
         
         else:
             ATR = "ATR Filtering!"
-            print(ATR)
+            # print(ATR)
+            log.info(ATR)
             if((self.DeletePOATR == True) and (self.FILTERING == True)):
                 self.DeletePendingOrder18_3()
                 self.DeletePendingOrder19_3()
@@ -1142,7 +1155,8 @@ class HappyForexEA(object):
              
             self.Trading = "Trading!"
             if (self.FILTERSPREAD and self.mode_spread > self.SpreadMax):
-                print("Comment: Spread too high! Max spread: %s - Current spread: %s. Date: %s" % (self.SpreadMax, self.mode_spread, self.current_datetime))
+                # print("Comment: Spread too high! Max spread: %s - Current spread: %s. Date: %s" % (self.SpreadMax, self.mode_spread, self.current_datetime))
+                log.info("Comment: Spread too high! Max spread: %s - Current spread: %s. Date: %s" % (self.SpreadMax, self.mode_spread, self.current_datetime))
                 return
  
             self.CheckLastOrderType33_4()
@@ -1156,7 +1170,8 @@ class HappyForexEA(object):
             else:
                 self.Trading = "Override Hour/Day Filter"
                 if  (self.FILTERSPREAD == True and self.mode_spread > self.SpreadMax):
-                    print("Comment: Spread too high! Max spread: %s - Current spread: %s. Date: %s" % (self.SpreadMax, self.mode_spread, self.current_datetime))
+                    # print("Comment: Spread too high! Max spread: %s - Current spread: %s. Date: %s" % (self.SpreadMax, self.mode_spread, self.current_datetime))
+                    log.info("Comment: Spread too high! Max spread: %s - Current spread: %s. Date: %s" % (self.SpreadMax, self.mode_spread, self.current_datetime))
                     return
                     
                 self.CheckLastOrderType33_4()
@@ -1170,7 +1185,8 @@ class HappyForexEA(object):
                 self.Trading = "Trading 24h"
                  
                 if (self.FILTERSPREAD == True) and (self.mode_spread > self.SpreadMax):
-                    print("Comment: Spread too high! Max spread: %s - Current spread: %s. Date: %s" % (self.SpreadMax, self.mode_spread, self.current_datetime))
+                    # print("Comment: Spread too high! Max spread: %s - Current spread: %s. Date: %s" % (self.SpreadMax, self.mode_spread, self.current_datetime))
+                    log.info("Comment: Spread too high! Max spread: %s - Current spread: %s. Date: %s" % (self.SpreadMax, self.mode_spread, self.current_datetime))
                     return
                  
                 self.CheckLastOrderType33_4()
@@ -1390,7 +1406,8 @@ class HappyForexEA(object):
         if (free_magin >= margin):
             return True
         else:
-            print("There are not enough money in account to open order %s" % order[ORDER_ID_COL_INDEX])
+            # print("There are not enough money in account to open order %s" % order[ORDER_ID_COL_INDEX])
+            log.info("There are not enough money in account to open order %s" % order[ORDER_ID_COL_INDEX])
             return False
         
     #===============================================================================
@@ -1424,16 +1441,18 @@ class HappyForexEA(object):
                         if (entry_price <= exit_price):
                             flag_modified = True
                         else:
-                            print("Cannot modify order OP_BUYLIMIT %s." % order_id)
-                        
+                            # print("Cannot modify order OP_BUYLIMIT %s." % order_id)
+                            log.info("Cannot modify order OP_BUYLIMIT %s." % order_id)
+                            
                     elif (order_type == OP_SELLLIMIT):
                         exit_price = self.ask_price
                         
                         if (entry_price >= exit_price):
                             flag_modified = True
                         else:
-                            print("Cannot modify order OP_SELLLIMIT %s." % order_id)
-                    
+                            # print("Cannot modify order OP_SELLLIMIT %s." % order_id)
+                            log.info("Cannot modify order OP_SELLLIMIT %s." % order_id)
+                            
                     # this Pending order can be modified
                     if (flag_modified):
                       
@@ -1475,11 +1494,13 @@ class HappyForexEA(object):
                                 if (flag_added):
                                     self.ords_in_a_day += DEFAULT_SECOND_NUMBER
                                     if (new_order_type == OP_BUY):
-                                        print("Modified the Pending order OP_BUYLIMIT %s to Open order OP_BUY." % order_id)
+                                        # print("Modified the Pending order OP_BUYLIMIT %s to Open order OP_BUY." % order_id)
+                                        log.info("Modified the Pending order OP_BUYLIMIT %s to Open order OP_BUY." % order_id)
                                         
                                     elif (new_order_type == OP_SELL):
-                                        print("Modified the Pending order OP_SELLLIMIT %s to Open order OP_SELL." % order_id)
-                                    
+                                        # print("Modified the Pending order OP_SELLLIMIT %s to Open order OP_SELL." % order_id)
+                                        log.info("Modified the Pending order OP_SELLLIMIT %s to Open order OP_SELL." % order_id)
+                                        
             
     #===============================================================================
     def run(self):
@@ -1559,7 +1580,9 @@ class HappyForexEA(object):
                 
                 print("==> checking date %s" % self.current_date)
                 print("==> row_index: %s" % row_index)
-                
+                log.info("==> checking date %s" % self.current_date)
+                log.info("==> row_index: %s" % row_index)
+                                                                
             # check if reaching maximum orders and delete the pending orders            
             self.MaxOrders_9(self.OPENORDERSLIMITDAY)
             
@@ -1607,8 +1630,12 @@ class HappyForexEA(object):
             }
             '''
             
+        # check total profit at the moment again (just in case)
+        self.CurrentProfit = self.ProfitCheck_3()
+            
         print("==> Completed!!!")    
-                    
+        log.info("==> Completed!!!")    
+                        
         return (self.CurrentProfit)
 
     #===============================================================================
