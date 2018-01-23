@@ -60,8 +60,10 @@ if __name__ == '__main__':
      
            
     print('#============================== Population gets an individual with maximum fitness ==============================')
-    # While population gets an individual with maximum fitness
-    while (happyforexGA.population.fittest < MAX_FITNESS):
+    # While population gets an individual with maximum fitness or the population has converged (does not produce different offspring)
+    while (happyforexGA.population.fittest < MAX_FITNESS 
+           and happyforexGA.least_fittest_ind.individual_ID != happyforexGA.added_offstring_ind.individual_ID):
+        
         happyforexGA.generationCount += 1
            
         # Do selection
@@ -111,11 +113,11 @@ if __name__ == '__main__':
     print("Fitness: %s" % happyforexGA.fittest_ind.fitness);
     print("Individual_ID: %s" % happyforexGA.fittest_ind.individual_ID)
     print("Genes: %s" % happyforexGA.fittest_ind.genes);
-    write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes, folder_output + TIME_STAMP + FILENAME_BEST_SOLUTION, '=')
+    write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes, folder_output + TIME_STAMP + '_' + FILENAME_BEST_SOLUTION, '=')
              
     
     # Write out the whole best parameters (converted back 1/0 in the data into True/False)
-    write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes_completed, folder_output + TIME_STAMP + FILENAME_BEST_PARAMETERS, '=')
+    write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes_completed, folder_output + TIME_STAMP + '_' + FILENAME_BEST_PARAMETERS, '=')
           
           
     # Write the population final to a CSV file for reference

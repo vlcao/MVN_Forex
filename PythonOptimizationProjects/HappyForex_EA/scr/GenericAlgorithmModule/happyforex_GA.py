@@ -10,7 +10,8 @@ import sys
 from DataHandler.happyforex_Datahandler import DEFAULT_NUMBER, MAX_LOTS, NET_PROFIT, MAX_FITNESS, \
                                     OPTIMIZED_PARAMETERS_DATA, OPTIMIZE_PARAMETERS_LIST, \
                                     VALUE_COL_INDEX, DEFAULT_SECOND_NUMBER, DEFAULT_PARAMETERS_DATA, \
-                                    copy_string_array, permutation_count, merge_2parametes_array_data
+                                    copy_string_array, permutation_count, merge_2parametes_array_data, \
+    write_dict2csv_no_header, FOLDER_DATA_OUTPUT
 from EAModule.happyforex_EA import HappyForexEA
 
 logger = logging.getLogger(__name__)
@@ -34,7 +35,7 @@ class Individual(object):
         self.net_profit = DEFAULT_NUMBER
         self.total_win = DEFAULT_NUMBER
         self.fitness = DEFAULT_NUMBER
-        self.individual_ID = DEFAULT_NUMBER
+        self.individual_ID = str(DEFAULT_NUMBER)
        
         # copy optimize-needed and default parameters for each individual to become its genes
         self.genes = copy_string_array(OPTIMIZED_PARAMETERS_DATA)
@@ -287,7 +288,16 @@ class Population(object):
                 max_fit = self.individuals[i].fitness
         
         self.fittest = max_fit
-        return self.individuals[max_fit_index]     
+        
+        highest_fitness_ind = Individual()
+        highest_fitness_ind.individual_ID = self.individuals[max_fit_index].individual_ID
+        highest_fitness_ind.net_profit = self.individuals[max_fit_index].net_profit
+        highest_fitness_ind.total_win = self.individuals[max_fit_index].total_win
+        highest_fitness_ind.fitness = self.individuals[max_fit_index].fitness
+        highest_fitness_ind.genes = copy_string_array(self.individuals[max_fit_index].genes)
+        highest_fitness_ind.genes_completed = copy_string_array(self.individuals[max_fit_index].genes_completed)
+        
+        return highest_fitness_ind     
         
     #===============================================================================
     # Get the second most highest fitness individual
@@ -301,7 +311,15 @@ class Population(object):
             elif self.individuals[i].fitness > self.individuals[max_fit_2].fitness:
                 max_fit_2 = i
         
-        return self.individuals[max_fit_2]      
+        highest_second_fitness_ind = Individual()
+        highest_second_fitness_ind.individual_ID = self.individuals[max_fit_2].individual_ID
+        highest_second_fitness_ind.net_profit = self.individuals[max_fit_2].net_profit
+        highest_second_fitness_ind.total_win = self.individuals[max_fit_2].total_win
+        highest_second_fitness_ind.fitness = self.individuals[max_fit_2].fitness
+        highest_second_fitness_ind.genes = copy_string_array(self.individuals[max_fit_2].genes)
+        highest_second_fitness_ind.genes_completed = copy_string_array(self.individuals[max_fit_2].genes_completed)
+        
+        return highest_second_fitness_ind 
     
     #===============================================================================
     # Get index of the least fitness individual
@@ -487,7 +505,7 @@ class HappyForexGenericAlgorithm(object):
     #===============================================================================
     # Replace least fitness individual from most highest fitness offspring
     def add_fittest_offspring(self):
-        # Update fitness values of offspring
+        # Update fitness values of offspring (after crossover and mutation)
         self.fittest_ind.cal_fitness()
         self.second_fittest_ind.cal_fitness()
         
@@ -499,7 +517,6 @@ class HappyForexGenericAlgorithm(object):
         self.added_offstring_ind = self.get_fittest_offspring()
        
         # Replace least fitness individual by the highest fitness offspring
-        del self.population.individuals[least_fittest_index] 
         self.population.individuals[least_fittest_index] = self.added_offstring_ind
         
         # update individuals_ID_dict

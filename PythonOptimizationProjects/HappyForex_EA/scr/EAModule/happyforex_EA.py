@@ -5,9 +5,18 @@ Created on Dec 12, 2017
 '''
 
 import random
+import logging
 
-from DataHandler.happyforex_Datahandler import *
-
+from datetime import datetime
+from DataHandler.happyforex_Datahandler import DIGITS, DEFAULT_NUMBER, DEPOSIT, DEFAULT_SECOND_NUMBER, POINT, ONE_LOT_VALUE, COMMISSION, \
+    DATETIME_FORMAT, MARKET_TIME_STANDARD, BALANCE_COL_INDEX, HISTORY_DATA, BID_COL_INDEX, ASK_COL_INDEX, \
+    ORDER_TYPE_COL_INDEX, PRICE_COL_INDEX, TIME_COL_INDEX, LOTS_COL_INDEX, LEVERAGE, ORDER_ID_COL_INDEX, HOURS_OF_ADAY, \
+    FOLDER_DATA_OUTPUT, FILENAME_ORDER_CLOSED_HISTORY, FILENAME_ORDER_OPENED_HISTORY, FILENAME_DATE_DICT, \
+    DEFAULT_PARAMETERS_DATA, VALUE_COL_INDEX, OP_SELL, OP_BUY, OP_SELLLIMIT, OP_BUYLIMIT, MINUTES_OF_ANHOUR, DATE_COL_INDEX, PROFIT_COL_INDEX, \
+    FILENAME_OPTIMIZE_PARAMETER, OPTIMIZED_PARAMETERS_DATA, NET_PROFIT, \
+    copy_string_array, convert_string_day2float, convert_string_time2float, convert_string_datetime2float, \
+    write_dict2csv_no_header, float_checker, write_array2csv_with_delimiter_no_header
+    
 
 logger = logging.getLogger(__name__)
 
@@ -1037,34 +1046,6 @@ class HappyForexEA(object):
                 self.Overide = True
                 self.HoursFilter22_3()
         
-#     #===============================================================================
-#     def ArrayResize(self, origin_array, new_size):
-#         '''  Sets a new size for the first dimension of the list. '''
-#     
-#         data_col = len(origin_array[DEFAULT_NUMBER])
-#         data_row = new_size
-#         new_array = [[DEFAULT_NUMBER for x in range(data_col)] for y in range(data_row)]
-#         
-#         # when new_array is SMALLER than origin_array
-#         if new_size < len(origin_array):
-#             for x in range(data_row):
-#                 for y in range(data_col):
-#                     new_array[x][y] = origin_array[x][y]
-#         # when new_array is BIGGER than origin_array
-#         elif new_size > len(origin_array):
-#             
-#             # adjust the scope for copy from origin_array to new_array to avoid "list index out of range"
-#             data_row = len(origin_array)
-#             
-#             for x in range(data_row):
-#                 for y in range(data_col):
-#                     new_array[x][y] = origin_array[x][y]
-#         else:
-#             return origin_array
-#         
-#         return new_array
-#         
-#         
     #===============================================================================
     def CloseOrder17_3(self):
         ''' Close OP_BUY and delete OP_BUYLIMIT in Opened and Pending order pool. '''
@@ -1416,7 +1397,7 @@ class HappyForexEA(object):
                 # write out the order history
                 write_dict2csv_no_header(happyforex_EA_instance.ORDER_CLOSED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_CLOSED_HISTORY)
                 write_dict2csv_no_header(happyforex_EA_instance.ORDER_OPENED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_OPENED_HISTORY)
-                write_dict2csv_no_header(self.DATE_DATA_DICT, FOLDER_DATA_OUTPUT + "data_date_dict.csv")
+                write_dict2csv_no_header(self.DATE_DATA_DICT, FOLDER_DATA_OUTPUT + FILENAME_DATE_DICT)
                 
                 print("==> checking date %s" % self.current_date)
                 print("==> row_index: %s" % row_index)
@@ -1476,7 +1457,7 @@ class HappyForexEA(object):
     def run_nothing(self):
         ''' Randomly create values for NetProfit and TotalWin for testing only '''
     
-        self.net_profit = random.randint(DEFAULT_NUMBER, NET_PROFIT)
+        self.CurrentProfit = random.random() * NET_PROFIT
         
         return (self.CurrentProfit)
     
@@ -1486,6 +1467,59 @@ class HappyForexEA(object):
 happyforex_EA_instance = HappyForexEA(DEFAULT_PARAMETERS_DATA)
 
 # create all parameters for running EA
+name_ea_row_index = 0
+magic_row_index = 1
+filterspread_row_index = 2
+spreadmax_row_index = 3
+a_row_index = 4
+monday_row_index = 5
+tuesday_row_index = 6
+wednesday_row_index = 7
+thursday_row_index = 8
+friday_row_index = 9
+saturday_row_index = 10
+sunday_row_index = 11
+b_row_index = 12
+trading_24h_row_index = 13
+gmt_offset_row_index = 14
+hour_of_trading_from_row_index = 15
+hour_of_trading_to_row_index = 16
+use_orderslimit_row_index = 17
+openorderslimitday_row_index = 18
+c_row_index = 19
+time_closing_trades_row_index = 20
+time_of_closing_in_hours_row_index = 21
+time_of_closing_in_minutes_row_index = 22
+d_row_index = 23
+profit_row_index = 24
+profit_all_orders_row_index = 25
+e_row_index = 26
+openorderslimit_row_index = 27
+singleordersl_row_index = 28
+singleordertp_row_index = 29
+f_row_index = 30
+arrangements_of_trades_row_index = 31
+g_row_index = 32
+lots_row_index = 33
+slippage_row_index = 34
+h_row_index = 35
+set_up_of_loss_row_index = 36
+amount_of_loss_row_index = 37
+i_row_index = 38
+closing_of_all_trades_row_index = 39
+j_row_index = 40
+usenewsfilter_row_index = 41
+minsbeforenews_row_index = 42
+minsafternews_row_index = 43
+newsimpact_row_index = 44
+k_row_index = 45
+filtering_row_index = 46
+l_row_index = 47
+autoequitymanager_row_index = 48
+equitygainpercent_row_index = 49
+safeequitystopout_row_index = 50
+safeequityrisk_row_index = 51
+
 NAME_EA = str(happyforex_EA_instance.PARAMETERS_COMPLETED[name_ea_row_index]
                       [VALUE_COL_INDEX])
 MAGIC = int(happyforex_EA_instance.PARAMETERS_COMPLETED[magic_row_index]
@@ -1591,13 +1625,13 @@ SAFEEQUITYSTOPOUT = bool(str(happyforex_EA_instance.PARAMETERS_COMPLETED[safeequ
 SAFEEQUITYRISK = float(happyforex_EA_instance.PARAMETERS_COMPLETED[safeequityrisk_row_index]
                        [VALUE_COL_INDEX])
 
-# # running EA
-# happyforex_EA_instance.run()
-#   
-# # Write out other data for reference
-# write_array2csv_with_delimiter_no_header(OPTIMIZED_PARAMETERS_DATA, FOLDER_DATA_OUTPUT + FILENAME_OPTIMIZE_PARAMETER, '=')
-# write_dict2csv_no_header(happyforex_EA_instance.ORDER_CLOSED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_CLOSED_HISTORY)
-# write_dict2csv_no_header(happyforex_EA_instance.ORDER_OPENED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_OPENED_HISTORY)
+# running EA
+happyforex_EA_instance.run()
+   
+# Write out other data for reference
+write_array2csv_with_delimiter_no_header(OPTIMIZED_PARAMETERS_DATA, FOLDER_DATA_OUTPUT + FILENAME_OPTIMIZE_PARAMETER, '=')
+write_dict2csv_no_header(happyforex_EA_instance.ORDER_CLOSED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_CLOSED_HISTORY)
+write_dict2csv_no_header(happyforex_EA_instance.ORDER_OPENED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_OPENED_HISTORY)
 
 
         
