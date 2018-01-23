@@ -10,8 +10,7 @@ import sys
 from DataHandler.happyforex_Datahandler import DEFAULT_NUMBER, MAX_LOTS, NET_PROFIT, MAX_FITNESS, \
                                     OPTIMIZED_PARAMETERS_DATA, OPTIMIZE_PARAMETERS_LIST, \
                                     VALUE_COL_INDEX, DEFAULT_SECOND_NUMBER, DEFAULT_PARAMETERS_DATA, \
-                                    copy_string_array, permutation_count, merge_2parametes_array_data, \
-    write_dict2csv_no_header, FOLDER_DATA_OUTPUT
+                                    copy_string_array, permutation_count, merge_2parametes_array_data
 from EAModule.happyforex_EA import HappyForexEA
 
 logger = logging.getLogger(__name__)
@@ -235,6 +234,7 @@ class Individual(object):
         
         # for testing in the meantime ==> randomly pick the value of HAPPY FOREX EA
         self.net_profit = happyforex_EA_instance.run_nothing()
+#         self.net_profit = happyforex_EA_instance.run()
         
         # calculate fitness for the HappyForex EA
         if self.net_profit > NET_PROFIT:
@@ -256,9 +256,14 @@ class Population(object):
         Constructor
         '''
         self.logger = logging.getLogger(__name__)
+        
+#         # TODO: For testing only
+#         self.popSize = 5
+        
         # reduce 1 for size of permutation due to the condition True/False of Time_closing_trades
         letters = digits = len(OPTIMIZE_PARAMETERS_LIST) - 1  
         self.popSize = permutation_count(letters, digits)
+
         self.fittest = DEFAULT_NUMBER
         self.individuals = [Individual()] * self.popSize
         self.individuals_ID_dict = {}  # a dictionary (as a hash-map) for storing ID
