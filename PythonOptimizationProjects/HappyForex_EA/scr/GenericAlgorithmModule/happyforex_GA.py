@@ -243,6 +243,10 @@ class Individual(object):
         
 #         self.net_profit = happyforex_EA_instance.run_nothing()     # for testing only: randomly pick the value of HAPPYFOREX EA
         self.net_profit = happyforex_EA_instance.run()
+        self.ORDER_CLOSED_DICT = happyforex_EA_instance.ORDER_CLOSED_DICT
+        self.ORDER_OPENED_DICT = happyforex_EA_instance.ORDER_OPENED_DICT
+        self.DATE_DATA_DICT = happyforex_EA_instance.DATE_DATA_DICT
+        
         
         # calculate fitness for the HappyForex EA
         if self.net_profit > NET_PROFIT:

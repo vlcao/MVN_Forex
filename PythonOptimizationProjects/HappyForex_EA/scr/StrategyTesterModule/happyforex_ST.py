@@ -16,7 +16,8 @@ from DataHandler.happyforex_Datahandler import DEFAULT_NUMBER, MAX_FITNESS, FOLD
                                     FILENAME_POPULATION_INITIAL, FILENAME_POPULATION_FINAL, \
                                     OPTIMIZED_PARAMETERS_DATA, FILENAME_OPTIMIZE_PARAMETER, \
                                     FILENAME_ORDER_CLOSED_HISTORY, FILENAME_ORDER_OPENED_HISTORY, \
-                                    write_dict2csv_no_header, write_array2csv_with_delimiter_no_header
+                                    write_dict2csv_no_header, write_array2csv_with_delimiter_no_header, \
+    FILENAME_HIGHEST_PARAMETERS, FILENAME_DATE_DICT
 
 log = logging.getLogger(__name__)
 
@@ -76,15 +77,22 @@ if __name__ == '__main__':
         print("==> Generation: %s - Highest Fitness: %s" % (happyforexGA.generationCount, happyforexGA.population.fittest))
         log.info("==> Generation: %s - Highest Fitness: %s" % (happyforexGA.generationCount, happyforexGA.population.fittest))
         if happyforexGA.fittest_ind.fitness < MAX_FITNESS:
-            file_path_highest_solution = folder_output + TIME_STAMP + str(happyforexGA.fittest_ind.fitness) + '_' + FILENAME_HIGHEST_FITNESS
+            file_path_highest_solution = folder_output + TIME_STAMP + '_' + str(happyforexGA.fittest_ind.fitness) + FILENAME_HIGHEST_FITNESS
+            file_path_highest_parameters = folder_output + TIME_STAMP + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + FILENAME_HIGHEST_PARAMETERS
+            
             write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes, file_path_highest_solution, '=')
+            write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes_completed, file_path_highest_parameters, '=')
+            write_dict2csv_no_header(happyforexGA.fittest_ind.ORDER_CLOSED_DICT, folder_output + TIME_STAMP + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + FILENAME_ORDER_CLOSED_HISTORY)
+            write_dict2csv_no_header(happyforexGA.fittest_ind.ORDER_OPENED_DICT, folder_output + TIME_STAMP + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + FILENAME_ORDER_OPENED_HISTORY)
+            write_dict2csv_no_header(happyforexGA.fittest_ind.DATE_DATA_DICT, folder_output + TIME_STAMP + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + FILENAME_DATE_DICT)
+
          
                
         print('#============================== Population gets an individual with maximum fitness ==============================')
         log.info('#============================== Population gets an individual with maximum fitness ==============================')
         # While population gets an individual with maximum fitness or the population has converged (does not produce different offspring)
         while (happyforexGA.population.fittest < MAX_FITNESS 
-               and happyforexGA.generationCount < happyforexGA.population.popSize * 2):
+               and happyforexGA.generationCount < happyforexGA.population.popSize * 2):  # TODO: for testing only
             
             happyforexGA.generationCount += 1
                
@@ -133,9 +141,15 @@ if __name__ == '__main__':
             if happyforexGA.fittest_ind.fitness < MAX_FITNESS:
                 if path.isfile(file_path_highest_solution):
                     remove(file_path_highest_solution)
-                file_path_highest_solution = folder_output + TIME_STAMP + str(happyforexGA.fittest_ind.fitness) + '_' + FILENAME_HIGHEST_FITNESS
+                file_path_highest_solution = folder_output + TIME_STAMP + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + FILENAME_HIGHEST_FITNESS
+                file_path_highest_parameters = folder_output + TIME_STAMP + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + FILENAME_HIGHEST_PARAMETERS
+            
                 write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes, file_path_highest_solution, '=')
-        
+                write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes_completed, file_path_highest_parameters, '=')
+                write_dict2csv_no_header(happyforexGA.fittest_ind.ORDER_CLOSED_DICT, folder_output + TIME_STAMP + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + FILENAME_ORDER_CLOSED_HISTORY)
+                write_dict2csv_no_header(happyforexGA.fittest_ind.ORDER_OPENED_DICT, folder_output + TIME_STAMP + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + FILENAME_ORDER_OPENED_HISTORY)
+                write_dict2csv_no_header(happyforexGA.fittest_ind.DATE_DATA_DICT, folder_output + TIME_STAMP + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + FILENAME_DATE_DICT)
+
             print('#===========================================================================')
             log.info('#===========================================================================')
             
@@ -150,13 +164,15 @@ if __name__ == '__main__':
         log.info("Fitness: %s" % happyforexGA.fittest_ind.fitness);
         log.info("Individual_ID: %s" % happyforexGA.fittest_ind.individual_ID)
         log.info("Genes: %s" % happyforexGA.fittest_ind.genes);
-        write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes, folder_output + TIME_STAMP + '_' + FILENAME_BEST_SOLUTION, '=')
-                 
         
         # Write out the whole best parameters (converted back 1/0 in the data into True/False)
+        write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes, folder_output + TIME_STAMP + '_' + FILENAME_BEST_SOLUTION, '=')
         write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes_completed, folder_output + TIME_STAMP + '_' + FILENAME_BEST_PARAMETERS, '=')
-              
-              
+        
+        write_dict2csv_no_header(happyforexGA.fittest_ind.ORDER_CLOSED_DICT, folder_output + TIME_STAMP + '_' + FILENAME_ORDER_CLOSED_HISTORY)
+        write_dict2csv_no_header(happyforexGA.fittest_ind.ORDER_OPENED_DICT, folder_output + TIME_STAMP + '_' + FILENAME_ORDER_OPENED_HISTORY)
+        write_dict2csv_no_header(happyforexGA.fittest_ind.DATE_DATA_DICT, folder_output + TIME_STAMP + '_' + FILENAME_DATE_DICT)
+        
         # Write the population final to a CSV file for reference
         print('#============================== Write the population final to a CSV file ==============================')
         log.info('#============================== Write the population final to a CSV file ==============================')
