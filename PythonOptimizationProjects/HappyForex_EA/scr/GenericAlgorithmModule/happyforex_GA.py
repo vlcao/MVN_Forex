@@ -3,6 +3,7 @@ Created on Dec 22, 2017
 
 @author: cao.vu.lam
 '''
+#!/usr/bin/env python
 
 import logging
 import random
@@ -12,6 +13,7 @@ from DataHandler.happyforex_Datahandler import DEFAULT_NUMBER, MAX_LOTS, NET_PRO
                                     VALUE_COL_INDEX, DEFAULT_SECOND_NUMBER, DEFAULT_PARAMETERS_DATA, \
                                     copy_string_array, permutation_count, merge_2parametes_array_data
 from EAModule.happyforex_EA import HappyForexEA
+from multiprocessing.dummy import Pool as ThreadPool
 
 log = logging.getLogger(__name__)
 
@@ -40,14 +42,9 @@ class Individual(object):
         self.genes = copy_string_array(OPTIMIZED_PARAMETERS_DATA)
         self.genes_completed = copy_string_array(DEFAULT_PARAMETERS_DATA)
         
-        # Create a dictionary (as a hash-map) for storing Closed and Deleted orders with KEY is OrderID
+        # create dictionaries for storing orders pools 
         self.ORDER_CLOSED_DICT = {} 
-        
-        # Create a dictionary (as a hash-map) for storing Opened and Pending orders with KEY is OrderID
         self.ORDER_OPENED_DICT = {} 
-        
-        # Create a dictionary (as a hash-map) for storing Opened and Pending orders with KEY is OrderID
-        self.DATE_DATA_DICT = {} 
         
     #===============================================================================
     def create_random_genes(self):
@@ -216,43 +213,16 @@ class Individual(object):
         # create the whole completed parameters for running EA
         self.genes_completed = merge_2parametes_array_data(self.genes_completed, self.genes)
     
-    #===============================================================================
-    # Calculate fitness
-    # TODO: CUSTOMISE THIS FUNCTION, in the meantime ==> randomly pick the value of HAPPY FOREX EA
-    def cal_fitness(self):
-        self.fitness = DEFAULT_NUMBER
-        
-        ''' 
-        OLD CODE:
-            # divide the total fitness (100) to 2 part (50/50)
-            (self.net_profit, self.total_win) = happyforex_EA_instance.run()
-            
-            # adjust the net_profit & total_win
-            if self.net_profit > NET_PROFIT:
-                self.net_profit = NET_PROFIT
-            
-            if self.total_win > MAX_WIN_TOTAL_TRADE:
-                self.total_win = MAX_WIN_TOTAL_TRADE
-                
-            self.fitness = round(50 * (self.net_profit / NET_PROFIT 
-                                 + self.total_win / MAX_WIN_TOTAL_TRADE), 2)
-        '''
-        
-        self.genes_completed = merge_2parametes_array_data(self.genes_completed, self.genes)
-        happyforex_EA_instance = HappyForexEA(self.genes_completed)
-        
-#         self.net_profit = happyforex_EA_instance.run_nothing()     # for testing only: randomly pick the value of HAPPYFOREX EA
-        self.net_profit = happyforex_EA_instance.run()
-        self.ORDER_CLOSED_DICT = happyforex_EA_instance.ORDER_CLOSED_DICT
-        self.ORDER_OPENED_DICT = happyforex_EA_instance.ORDER_OPENED_DICT
-        self.DATE_DATA_DICT = happyforex_EA_instance.DATE_DATA_DICT
-        
-        
-        # calculate fitness for the HappyForex EA
-        if self.net_profit > NET_PROFIT:
-            self.net_profit = MAX_FITNESS
-        else:
-            self.fitness = round(100 * abs(self.net_profit) / NET_PROFIT, 2)
+#     #===============================================================================
+#     # fitness_result = (genes_completed, net_profit, fitness, ORDER_CLOSED_DICT, ORDER_OPENED_DICT, DATE_DATA_DICT)
+#         
+#     def save_fitness(self, fitness_result):
+#         
+#         self.net_profit = fitness_result[1]
+#         self.fitness = fitness_result[2]
+#         self.ORDER_CLOSED_DICT = fitness_result[3]
+#         self.ORDER_OPENED_DICT = fitness_result[4]
+#         self.DATE_DATA_DICT = fitness_result[5]
         
         
 ################################################################################
@@ -269,17 +239,21 @@ class Population(object):
         '''
         self.logger = logging.getLogger(__name__)
         
-        # TODO: For testing only
-        self.popSize = 5
-        
-        # TODO: UNCOMMENT when finishing testing
-#         # reduce 1 for size of permutation due to the condition True/False of Time_closing_trades
-#         letters = digits = len(OPTIMIZE_PARAMETERS_LIST) - 1  
-#         self.popSize = permutation_count(letters, digits)
+#         # TODO: For testing only
+#         self.popSize = 5
+#          
+#         # TODO: UNCOMMENT when finishing testing
+        # reduce 1 for size of permutation due to the condition True/False of Time_closing_trades
+        letters = digits = len(OPTIMIZE_PARAMETERS_LIST) - 1  
+        self.popSize = permutation_count(letters, digits)
 
         self.fittest = DEFAULT_NUMBER
         self.individuals = [Individual()] * self.popSize
         self.individuals_ID_dict = {}  # a dictionary (as a hash-map) for storing ID
+ 
+        # create dictionaries for storing orders pools and dates 
+        self.DATE_DATA_DICT = {} 
+        
         
     #===============================================================================
     # Initialize population
@@ -293,6 +267,9 @@ class Population(object):
             # assign the individual with unique ID into population
             self.individuals[i] = an_individual
             self.individuals_ID_dict[new_id] = i 
+            
+#             # add the genes completed to the pool
+#             self.all_genes_pool[an_individual.genes_completed] = i
             
     #===============================================================================
     # Get the highest fitness individual
@@ -353,11 +330,59 @@ class Population(object):
         return min_fitness_index
     
     #===============================================================================
-    # Get index of least fittest individual
+    # Calculate the fitness of each individual
+    def cal_fitness(self, Individual):
+        
+        ''' 
+        OLD CODE:
+            # divide the total fitness (100) to 2 part (50/50)
+            (net_profit, total_win) = happyforex_EA_instance.run()
+            
+            # adjust the net_profit & total_win
+            if net_profit > NET_PROFIT:
+                net_profit = NET_PROFIT
+            
+            if total_win > MAX_WIN_TOTAL_TRADE:
+                total_win = MAX_WIN_TOTAL_TRADE
+                
+            fitness = round(50 * (net_profit / NET_PROFIT 
+                                 + total_win / MAX_WIN_TOTAL_TRADE), 2)
+        '''
+        
+        Individual.fitness = DEFAULT_NUMBER
+        happyforex_EA_instance = HappyForexEA()
+        
+        # run the EA logic to return the profit
+        Individual.net_profit = happyforex_EA_instance.run(Individual.genes_completed)
+        Individual.ORDER_CLOSED_DICT = happyforex_EA_instance.ORDER_CLOSED_DICT
+        Individual.ORDER_OPENED_DICT = happyforex_EA_instance.ORDER_OPENED_DICT
+        
+        self.DATE_DATA_DICT = happyforex_EA_instance.DATE_DATA_DICT
+        
+        
+        # calculate fitness for the HappyForex EA
+        if Individual.net_profit > NET_PROFIT:
+            Individual.net_profit = MAX_FITNESS
+        else:
+            Individual.fitness = round(100 * abs(Individual.net_profit) / NET_PROFIT, 2)
+            
+        return Individual
+            
+    #===============================================================================
+    # Calculate the fitness of each individual
     def calculate_fittest(self):
-        for i in range(len(self.individuals)):
-            self.individuals[i].cal_fitness()
-
+        
+        # make the Pool of workers
+        ea_pool = ThreadPool(16)
+        
+        # and return the all_fitness_results
+        individuals_w_fitness = ea_pool.map(self.cal_fitness, self.individuals)
+        self.individuals = individuals_w_fitness
+        
+        # close the pool and wait for the work to finish 
+        ea_pool.close() 
+        ea_pool.join() 
+        
     #===============================================================================
     
  
@@ -529,8 +554,22 @@ class HappyForexGenericAlgorithm(object):
     # Replace least fitness individual from most highest fitness offspring
     def add_fittest_offspring(self):
         # Update fitness values of offspring (after crossover and mutation)
-        self.fittest_ind.cal_fitness()
-        self.second_fittest_ind.cal_fitness()
+        self.fittest_ind.genes_completed = merge_2parametes_array_data(self.fittest_ind.genes_completed,
+                                                                       self.fittest_ind.genes)
+        self.second_fittest_ind.genes_completed = merge_2parametes_array_data(self.second_fittest_ind.genes_completed,
+                                                                       self.second_fittest_ind.genes)
+        
+        # make the Pool of workers
+        ea_pool = ThreadPool(16)
+        
+        # --> and return the all_fitness_results
+        fittest_inds_w_fitness = ea_pool.map(self.population.cal_fitness, [self.fittest_ind, self.second_fittest_ind])
+        self.fittest_ind = fittest_inds_w_fitness[DEFAULT_NUMBER]
+        self.second_fittest_ind = fittest_inds_w_fitness[DEFAULT_SECOND_NUMBER]
+        
+        # --> close the pool and wait for the work to finish 
+        ea_pool.close() 
+        ea_pool.join() 
         
         # Get index of least fit individual
         least_fittest_index = self.population.get_least_fittest()
