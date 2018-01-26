@@ -105,8 +105,8 @@ if __name__ == '__main__':
         print('#============================== Population gets an individual with maximum fitness ==============================')
         log.info('#============================== Population gets an individual with maximum fitness ==============================')
         # While population gets an individual with maximum fitness or the population has converged (does not produce different offspring)
-        while (happyforexGA.population.fittest < MAX_FITNESS): 
-#                 and happyforexGA.generationCount < happyforexGA.population.popSize * 2):  # TODO: for testing only
+        while (happyforexGA.population.fittest < MAX_FITNESS 
+                and happyforexGA.generationCount < happyforexGA.population.popSize * 2):  # TODO: for testing only
             
             happyforexGA.generationCount += 1
                

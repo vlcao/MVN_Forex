@@ -239,13 +239,13 @@ class Population(object):
         '''
         self.logger = logging.getLogger(__name__)
         
-#         # TODO: For testing only
-#         self.popSize = 5
-#          
-#         # TODO: UNCOMMENT when finishing testing
-        # reduce 1 for size of permutation due to the condition True/False of Time_closing_trades
-        letters = digits = len(OPTIMIZE_PARAMETERS_LIST) - 1  
-        self.popSize = permutation_count(letters, digits)
+        # TODO: For testing only
+        self.popSize = 5
+         
+        # TODO: UNCOMMENT when finishing testing
+#         # reduce 1 for size of permutation due to the condition True/False of Time_closing_trades
+#         letters = digits = len(OPTIMIZE_PARAMETERS_LIST) - 1  
+#         self.popSize = permutation_count(letters, digits)
 
         self.fittest = DEFAULT_NUMBER
         self.individuals = [Individual()] * self.popSize
@@ -372,16 +372,28 @@ class Population(object):
     # Calculate the fitness of each individual
     def calculate_fittest(self):
         
+        ''' MONOTHREADING '''
+        for ind_ in self.individuals:
+            ind_ = self.cal_fitness(ind_)
+        
+
+        ''' MULTITHREADING
         # make the Pool of workers
-        ea_pool = ThreadPool(16)
-        
+        ea_pool = ThreadPool(8)
+         
         # and return the all_fitness_results
-        individuals_w_fitness = ea_pool.map(self.cal_fitness, self.individuals)
+#         individuals_w_fitness = ea_pool.map(self.cal_fitness, self.individuals)
+        results = [ea_pool.apply_async(self.cal_fitness, (ind_,)) for ind_ in self.individuals]
+         
+        # --> proxy.get() waits for task completion and returns the result
+        individuals_w_fitness = [r.get() for r in results]  
         self.individuals = individuals_w_fitness
-        
+         
         # close the pool and wait for the work to finish 
         ea_pool.close() 
-        ea_pool.join() 
+#         ea_pool.join() 
+        MULTITHREADING '''
+        
         
     #===============================================================================
     
@@ -559,17 +571,30 @@ class HappyForexGenericAlgorithm(object):
         self.second_fittest_ind.genes_completed = merge_2parametes_array_data(self.second_fittest_ind.genes_completed,
                                                                        self.second_fittest_ind.genes)
         
-        # make the Pool of workers
-        ea_pool = ThreadPool(16)
+        ''' MONOTHREADING '''
+        self.fittest_ind = self.population.cal_fitness(self.fittest_ind)
+        self.second_fittest_ind = self.population.cal_fitness(self.second_fittest_ind)
         
+        
+        ''' MULTITHREADING 
+        # make the Pool of workers
+        ea_pool = ThreadPool(8)
+         
         # --> and return the all_fitness_results
-        fittest_inds_w_fitness = ea_pool.map(self.population.cal_fitness, [self.fittest_ind, self.second_fittest_ind])
+#         fittest_inds_w_fitness = ea_pool.map(self.population.cal_fitness, [self.fittest_ind, self.second_fittest_ind])
+         
+        # --> proxy.get() waits for task completion and returns the result
+        results = [ea_pool.apply_async(self.population.cal_fitness, (ind_,)) for ind_ in [self.fittest_ind, self.second_fittest_ind]]
+        fittest_inds_w_fitness = [r.get() for r in results]  
+         
         self.fittest_ind = fittest_inds_w_fitness[DEFAULT_NUMBER]
         self.second_fittest_ind = fittest_inds_w_fitness[DEFAULT_SECOND_NUMBER]
-        
+         
         # --> close the pool and wait for the work to finish 
         ea_pool.close() 
-        ea_pool.join() 
+#         ea_pool.join() 
+        MULTITHREADING '''
+        
         
         # Get index of least fit individual
         least_fittest_index = self.population.get_least_fittest()
