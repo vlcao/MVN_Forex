@@ -10,10 +10,10 @@ import logging
 
 from datetime import datetime
 from DataHandler.happyforex_Datahandler import DIGITS, DEFAULT_NUMBER, DEPOSIT, DEFAULT_SECOND_NUMBER, POINT, ONE_LOT_VALUE, COMMISSION, \
-    DATETIME_FORMAT, MARKET_TIME_STANDARD, BALANCE_COL_INDEX, HISTORY_DATA, BID_COL_INDEX, ASK_COL_INDEX, TIME_STAMP_FORMAT, \
-    ORDER_TYPE_COL_INDEX, PRICE_COL_INDEX, TIME_COL_INDEX, LOTS_COL_INDEX, LEVERAGE, ORDER_ID_COL_INDEX, HOURS_OF_ADAY, \
+    DATETIME_FORMAT, MARKET_TIME_STANDARD, BALANCE_COL_INDEX, TICK_DATA, BID_COL_INDEX, ASK_COL_INDEX, TIME_STAMP_FORMAT, \
+    ORDER_TYPE_COL_INDEX, PRICE_COL_INDEX, LOTS_COL_INDEX, LEVERAGE, ORDER_ID_COL_INDEX, HOURS_OF_ADAY, \
     FOLDER_DATA_OUTPUT, FILENAME_ORDER_CLOSED_HISTORY, FILENAME_ORDER_OPENED_HISTORY, FILENAME_DATE_DICT, NET_PROFIT, \
-    VALUE_COL_INDEX, OP_SELL, OP_BUY, OP_SELLLIMIT, OP_BUYLIMIT, MINUTES_OF_ANHOUR, DATE_COL_INDEX, PROFIT_COL_INDEX, \
+    VALUE_COL_INDEX, OP_SELL, OP_BUY, OP_SELLLIMIT, OP_BUYLIMIT, MINUTES_OF_ANHOUR, DATETIME_COL_INDEX, PROFIT_COL_INDEX, \
     convert_string_day2float, convert_string_time2float, convert_string_datetime2float, \
     write_dict2csv_no_header, float_checker, \
     write_array2csv_with_delimiter_no_header, copy_string_array, \
@@ -104,8 +104,6 @@ class HappyForexEA(object):
         self.total_loss = float(DEFAULT_NUMBER)
         self.total_orders = float(DEFAULT_NUMBER)
         self.ords_in_a_day = DEFAULT_NUMBER
-        self.current_date = ""
-        self.current_time = ""
         self.current_datetime = ""
         self.old_date = ""
         self.bid_price = float(DEFAULT_NUMBER)
@@ -178,7 +176,7 @@ class HappyForexEA(object):
     # create all parameters for running EA
         
     #===============================================================================
-    def CalculateProfit_5(self, entry_price, exit_price, order_type):
+    def CalculateProfit_5(self, entry_price, exit_price, lots, order_type):
         ''' Calculates the profit or loss of a position in the home currency of the account. 
         1/When you go long, you enter the market at the ASK price and exit the market at BID price.
         2/When you go short, you enter the market at the BID price and exit at the ASK price.
@@ -208,10 +206,10 @@ class HappyForexEA(object):
         result = float(DEFAULT_NUMBER)
      
         if  (order_type == OP_BUY): 
-            result = (exit_price - entry_price) * self.Lots * ONE_LOT_VALUE - COMMISSION
+            result = (exit_price - entry_price) * lots * ONE_LOT_VALUE - COMMISSION
          
         elif (order_type == OP_SELL):
-            result = (entry_price - exit_price) * self.Lots * ONE_LOT_VALUE - COMMISSION
+            result = (entry_price - exit_price) * lots * ONE_LOT_VALUE - COMMISSION
         
         return round(float(result), self.NDigits)
         
@@ -250,7 +248,7 @@ class HappyForexEA(object):
         for order_id in self.ORDER_OPENED_DICT.keys():
             # --> get the date-time of the opened/pending orders
             opened_order = self.ORDER_OPENED_DICT[order_id]
-            OrderOpenTime = opened_order[DATE_COL_INDEX]
+            OrderOpenTime = opened_order[DATETIME_COL_INDEX]
             
             # --> count orders when orders are BUY/SELL and in the current day (replace for: iBarShift(NULL,PERIOD_D1,OrderOpenTime())==0)
             order_type = self.OrderType_5(order_id, self.ORDER_OPENED_DICT)
@@ -261,7 +259,7 @@ class HappyForexEA(object):
         for order_id in self.ORDER_CLOSED_DICT.keys():
             # --> get the date-time of the closed/deleted orders and current date-time
             closed_order = self.ORDER_CLOSED_DICT[order_id]
-            OrderClosedTime = closed_order[DATE_COL_INDEX]
+            OrderClosedTime = closed_order[DATETIME_COL_INDEX]
             
             # --> count orders when orders are BUY/SELL and in the current day (replace for: iBarShift(NULL,PERIOD_D1,OrderOpenTime())==0)
             order_type = self.OrderType_5(order_id, self.ORDER_CLOSED_DICT)
@@ -302,7 +300,7 @@ class HappyForexEA(object):
     def ProfitCheck_3(self):
         ''' Return Profit of all closed trades following the '''
     
-        net_profit = float(DEFAULT_NUMBER)
+        net_profit = self.CurrentProfit
         
         if (len(self.ORDER_OPENED_DICT) == DEFAULT_NUMBER and len(self.ORDER_CLOSED_DICT) == DEFAULT_NUMBER):
             return net_profit
@@ -368,10 +366,10 @@ class HappyForexEA(object):
     
     #===============================================================================
     def MODE_SPREAD_1(self, row_index):
-        ''' Return spread of one record in HISTORY_DATA. '''
+        ''' Return spread of one record in TICK_DATA. '''
     
-        spread = abs(float(HISTORY_DATA[row_index][BID_COL_INDEX]) 
-             - float(HISTORY_DATA[row_index][ASK_COL_INDEX]))
+        spread = abs(float(TICK_DATA[row_index][BID_COL_INDEX]) 
+             - float(TICK_DATA[row_index][ASK_COL_INDEX]))
         
         for i in range(DIGITS):
             spread *= float(10)
@@ -491,12 +489,13 @@ class HappyForexEA(object):
                 # ORDER_OPENED_DICT[] = ['Date', 'Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']
                 # update the new values for this order from Opened to Close position
                 
-                profit = self.CalculateProfit_5(entry_price, exit_price, order_type)
+                lots = new_closed_order[LOTS_COL_INDEX]
+                profit = self.CalculateProfit_5(entry_price, exit_price, lots, order_type)
+                
                 self.CurrentProfit = self.CurrentProfit + profit
                 self.balance = self.balance + profit
                 
-                new_closed_order[DATE_COL_INDEX] = convert_string_day2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
-                new_closed_order[TIME_COL_INDEX] = convert_string_time2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
+                new_closed_order[DATETIME_COL_INDEX] = convert_string_datetime2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
                 new_closed_order[PROFIT_COL_INDEX] = profit
                 new_closed_order[PRICE_COL_INDEX] = exit_price
                 new_closed_order[BALANCE_COL_INDEX] = self.balance 
@@ -530,8 +529,7 @@ class HappyForexEA(object):
                
                 if (flag_deleted):
                     # --> update date time and save this deleted OP_SELLLIMIT in the Closed and Deleted orders pool
-                    order[DATE_COL_INDEX] = convert_string_day2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
-                    order[TIME_COL_INDEX] = convert_string_time2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
+                    order[DATETIME_COL_INDEX] = convert_string_datetime2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
                     self.OrderAdd_10(order_id, order, self.ORDER_CLOSED_DICT)
         
         ''' 
@@ -574,8 +572,7 @@ class HappyForexEA(object):
                
                 if (flag_deleted):
                     # --> update date time and save this deleted OP_BUYLIMIT in the Closed and Deleted orders pool
-                    order[DATE_COL_INDEX] = convert_string_day2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
-                    order[TIME_COL_INDEX] = convert_string_time2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
+                    order[DATETIME_COL_INDEX] = convert_string_datetime2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
                     self.OrderAdd_10(order_id, order, self.ORDER_CLOSED_DICT)
         
         ''' 
@@ -612,9 +609,9 @@ class HappyForexEA(object):
         for order_id in self.ORDER_CLOSED_DICT.keys():
             '''  if (!OrderSelect(i, SELECT_BY_POS, MODE_HISTORY)) continue;  # SKIP from origin EA '''
             closed_order = self.ORDER_CLOSED_DICT[order_id]
-            OrderCloseTime = closed_order[DATE_COL_INDEX]
+            OrderCloseTime = closed_order[DATETIME_COL_INDEX]
             
-#             order_time = str(closed_order[DATE_COL_INDEX] + "_" + closed_order[TIME_COL_INDEX])
+#             order_time = str(closed_order[DATETIME_COL_INDEX] + "_" + closed_order[TIME_COL_INDEX])
 #             OrderCloseTime = convert_string_datetime2float(order_time, MARKET_TIME_STANDARD, DATETIME_FORMAT)
             
             if (lastCloseTime < OrderCloseTime):
@@ -700,9 +697,8 @@ class HappyForexEA(object):
             elif (order_type == OP_SELLLIMIT):
                 entry_price = order_price - slippage_in_decimal
             
-            order = [convert_string_day2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT),
-                     convert_string_time2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT),
-                     OP_BUYLIMIT,
+            order = [convert_string_datetime2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT),
+                     order_type,
                      order_id,
                      order_lots,
                      round(entry_price, self.NDigits),
@@ -993,9 +989,9 @@ class HappyForexEA(object):
         for order_id in self.ORDER_CLOSED_DICT.keys():
             '''  if (!OrderSelect(i, SELECT_BY_POS, MODE_HISTORY)) continue;  # SKIP from origin EA '''
             closed_order = self.ORDER_CLOSED_DICT[order_id]
-            OrderCloseTime = closed_order[DATE_COL_INDEX]
+            OrderCloseTime = closed_order[DATETIME_COL_INDEX]
             
-#             order_time = str(closed_order[DATE_COL_INDEX] + "_" + closed_order[TIME_COL_INDEX])
+#             order_time = str(closed_order[DATETIME_COL_INDEX] + "_" + closed_order[TIME_COL_INDEX])
 #             OrderCloseTime = convert_string_datetime2float(order_time, MARKET_TIME_STANDARD, DATETIME_FORMAT)
             
             if (lastCloseTime < OrderCloseTime):
@@ -1234,8 +1230,7 @@ class HappyForexEA(object):
                 flag_close_delete_all = self.OrderDelete_4(order_id, self.ORDER_OPENED_DICT)
                
                 # --> update date time and save this deleted OP_BUYLIMIT or OP_SELLLIMIT oder in the Closed and Deleted orders pool
-                order[DATE_COL_INDEX] = convert_string_day2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
-                order[TIME_COL_INDEX] = convert_string_time2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
+                order[DATETIME_COL_INDEX] = convert_string_datetime2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
                 flag_close_delete_all = self.OrderAdd_10(order_id, order, self.ORDER_CLOSED_DICT)
         
                 if (flag_close_delete_all == False):
@@ -1274,10 +1269,10 @@ class HappyForexEA(object):
                     elif  (order_type == OP_SELL):
                         exit_price = self.ask_price
                     
-                    profit = self.CalculateProfit_5(entry_price, exit_price, order_type)
+                    lots = new_closed_order[LOTS_COL_INDEX]
+                    profit = self.CalculateProfit_5(entry_price, exit_price, lots, order_type)
                     
-                    new_closed_order[DATE_COL_INDEX] = convert_string_day2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
-                    new_closed_order[TIME_COL_INDEX] = convert_string_time2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
+                    new_closed_order[DATETIME_COL_INDEX] = convert_string_datetime2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
                     new_closed_order[PROFIT_COL_INDEX] = profit
                     new_closed_order[PRICE_COL_INDEX] = exit_price
                             
@@ -1376,10 +1371,10 @@ class HappyForexEA(object):
                                     new_order_type = OP_SELL
                                     
                                 # calculate the new profit   
-                                profit = self.CalculateProfit_5(entry_price, exit_price, new_order_type)
+                                lots = order[LOTS_COL_INDEX]
+                                profit = self.CalculateProfit_5(entry_price, exit_price, lots, new_order_type)
                                 
-                                order[DATE_COL_INDEX] = convert_string_day2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
-                                order[TIME_COL_INDEX] = convert_string_time2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
+                                order[DATETIME_COL_INDEX] = convert_string_datetime2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
                                 order[ORDER_TYPE_COL_INDEX] = new_order_type
                                 order[PRICE_COL_INDEX] = exit_price
                                 order[PROFIT_COL_INDEX] = profit
@@ -1606,33 +1601,30 @@ class HappyForexEA(object):
             self.Time_of_closing_in_hours += HOURS_OF_ADAY
         
         # save the first day 
-        first_day = HISTORY_DATA[DEFAULT_NUMBER][DATE_COL_INDEX] + '_' + HISTORY_DATA[DEFAULT_NUMBER][TIME_COL_INDEX]
-        fprevious_date = convert_string_day2float(first_day, MARKET_TIME_STANDARD, DATETIME_FORMAT)
-        self.DATE_DATA_DICT[fprevious_date] = HISTORY_DATA[DEFAULT_NUMBER][DATE_COL_INDEX]
+        first_day = TICK_DATA[DEFAULT_NUMBER][DATETIME_COL_INDEX]
+        fprevious_day = convert_string_day2float(first_day, MARKET_TIME_STANDARD, DATETIME_FORMAT)
+        self.DATE_DATA_DICT[fprevious_day] = TICK_DATA[DEFAULT_NUMBER][DATETIME_COL_INDEX]
         
-        for row_index in range(len(HISTORY_DATA)):
+        for row_index in range(len(TICK_DATA)):
             if (row_index == DEFAULT_NUMBER):
                 print("... ==> start processing the data...")
             elif (row_index == 1000 or row_index % 10000 == DEFAULT_NUMBER):
-                perc = round((float(row_index) / float(len(HISTORY_DATA))) * float(100), 2)
+                perc = round((float(row_index) / float(len(TICK_DATA))) * float(100), 2)
                 print("... ==> processing {0}% of the data...".format(str(perc)))
             
-            self.current_date = HISTORY_DATA[row_index][DATE_COL_INDEX]
-            self.current_time = HISTORY_DATA[row_index][TIME_COL_INDEX]
-            self.current_datetime = self.current_date + '_' + self.current_time
-            
-            self.bid_price = float(HISTORY_DATA[row_index][BID_COL_INDEX])
-            self.ask_price = float(HISTORY_DATA[row_index][ASK_COL_INDEX])
+            self.current_datetime = TICK_DATA[row_index][DATETIME_COL_INDEX]
+            self.bid_price = float(TICK_DATA[row_index][BID_COL_INDEX])
+            self.ask_price = float(TICK_DATA[row_index][ASK_COL_INDEX])
             self.mode_spread = self.MODE_SPREAD_1(row_index)
             
-            fcurrent_date = convert_string_day2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
+            fcurrent_day = convert_string_day2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
             
             # save the previous date when going to a new date 
-            if (fprevious_date != fcurrent_date):
+            if (fprevious_day != fcurrent_day):
                 
                 # save the old date
-                fprevious_date = fcurrent_date
-                self.DATE_DATA_DICT[fcurrent_date] = self.current_date
+                fprevious_day = fcurrent_day
+                self.DATE_DATA_DICT[fcurrent_day] = self.current_datetime
                 
                 # reset the Maximum open orders per day
                 self.ords_in_a_day = DEFAULT_NUMBER
@@ -1640,9 +1632,9 @@ class HappyForexEA(object):
                 # update the output data
                 write_dict2csv_no_header(self.DATE_DATA_DICT, FOLDER_DATA_OUTPUT + FILENAME_DATE_DICT)
                 
-                print("==> checking date %s" % self.current_date)
+                print("==> checking date %s" % self.current_datetime)
                 print("==> row_index: %s" % row_index)
-                log.info("==> checking date %s" % self.current_date)
+                log.info("==> checking date %s" % self.current_datetime)
                 log.info("==> row_index: %s" % row_index)
                                                                 
             # check if reaching maximum orders and delete the pending orders            
@@ -1710,13 +1702,13 @@ class HappyForexEA(object):
     
     
 #===============================================================================
-# # create an instance EA for running 
-# happyforex_EA_instance = HappyForexEA()
-#   
-# # running EA
-# happyforex_EA_instance.run(DEFAULT_PARAMETERS_DATA)
-#      
-# # Write out other data for reference
-# write_array2csv_with_delimiter_no_header(OPTIMIZED_PARAMETERS_DATA, FOLDER_DATA_OUTPUT + FILENAME_OPTIMIZE_PARAMETER, '=')
-# write_dict2csv_no_header(happyforex_EA_instance.ORDER_CLOSED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_CLOSED_HISTORY)
-# write_dict2csv_no_header(happyforex_EA_instance.ORDER_OPENED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_OPENED_HISTORY)
+# create an instance EA for running 
+happyforex_EA_instance = HappyForexEA()
+    
+# running EA
+happyforex_EA_instance.run(DEFAULT_PARAMETERS_DATA)
+       
+# Write out other data for reference
+write_array2csv_with_delimiter_no_header(OPTIMIZED_PARAMETERS_DATA, FOLDER_DATA_OUTPUT + FILENAME_OPTIMIZE_PARAMETER, '=')
+write_dict2csv_no_header(happyforex_EA_instance.ORDER_CLOSED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_CLOSED_HISTORY)
+write_dict2csv_no_header(happyforex_EA_instance.ORDER_OPENED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_OPENED_HISTORY)

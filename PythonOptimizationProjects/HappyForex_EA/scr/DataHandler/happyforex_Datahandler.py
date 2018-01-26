@@ -73,34 +73,58 @@ def merge_2parametes_array_data(old_array, new_array):
     return old_array
 
 #===============================================================================
-def load_csv2dataframe(file_name_history_data):
+def load_csv2dataframe(file_name):
     
     # convert the back flash with forward flash (just in case)
-    file_name_history_data = convert_backflash2forwardflash(file_name_history_data)
+    file_name = convert_backflash2forwardflash(file_name)
     
     # create a data frame with CSV file
-    DataFrame = pd.read_csv(file_name_history_data)
+    DataFrame = pd.read_csv(file_name)
      
     return DataFrame
 
 #===============================================================================
+def create_a_new_row(previous_row, row):
+    ''' Analyze the string separated by Space to get Date and Time '''
+    
+    # --> get the part BEFORE (Date) and AFTER (Time) the Space
+    split_space = previous_row[DEFAULT_SECOND_NUMBER].split(' ')
+    date_part = split_space[DEFAULT_NUMBER]
+    time_part = split_space[DEFAULT_SECOND_NUMBER] 
+    
+    # --> format the date time as expected
+    date_modified_part = (str(date_part[:4]) + '.' + str(date_part[4:6]) + '.' + str(date_part[6:8]) 
+                          + '_' + str(time_part))
+    
+    # --> create a new row for Tick data
+    return [date_modified_part, previous_row[2], previous_row[3], row[2], row[3]]
+
+#===============================================================================
 def load_wholefolder2array(folder_name):    
 
-#     folder_name = os.getcwd() + "/tick"  # use your path
     allFiles = glob.glob(folder_name + "/*.csv")
     list_ = []
     for file_ in allFiles:
-        # convert the back flash with forward flash (just in case)
-        file_ = convert_backflash2forwardflash(file_)
-            
         # open the CSV file
         ifile = open(file_, "rU")
         reader = csv.reader(ifile, delimiter=",")
+        previous_row = reader.next()
         
         for row in reader:
-            list_.append (row)
-        
+            
+            new_row = create_a_new_row(previous_row, row)
+            
+            list_.append (new_row)
+            
+            # --> save the current row
+            previous_row = row
+            
         ifile.close()
+    
+        # save the last row
+        last_row = [0, 0, 0, 0]
+        new_last_row = create_a_new_row(previous_row, last_row)
+        list_.append(new_last_row)
         
     return list_
    
@@ -275,9 +299,9 @@ def display_an_array_with_delimiter(array_out, delimiter):
             log.info(delimiter . join(sMyArray))
             i += 1
         
-        # print the summary
-        print('[%s rows x %s columns]' % (out_length, len(array_out[DEFAULT_NUMBER])))
-        log.info('[%s rows x %s columns]' % (out_length, len(array_out[DEFAULT_NUMBER])))
+    # print the summary
+    print('[%s rows x %s columns]' % (out_length, len(array_out[DEFAULT_NUMBER])))
+    log.info('[%s rows x %s columns]' % (out_length, len(array_out[DEFAULT_NUMBER])))
         
 #===============================================================================
 ''' Display dictionary with the input delimiter (ex: '=' or ',' or '/' etc.) '''
@@ -287,7 +311,7 @@ def display_an_dict_with_delimiter(dict_out, delimiter):
     for key, value in dict_out.iteritems():  
         print('%s' % str(key) + delimiter + '%s' % str(value))
         log.info('%s' % str(key) + delimiter + '%s' % str(value))
-
+        
 #===============================================================================
 ''' Compare 2 times with a standard time. '''
 def is_time_earlier(early_timer, late_time, std_time, sformat):
@@ -366,30 +390,6 @@ def order_delete(self, row_index, array_data):
         print("There's NO row %s in data." % row_index)
         log.info("There's NO row %s in data." % row_index)
         
-
-#===============================================================================
-def account_balance(self, row_index):
-    ''' Return current balance of all orders '''
-
-    if (HISTORY_DATA[row_index][BALANCE_COL_INDEX] != ""
-        and float_checker(float(HISTORY_DATA[row_index][BALANCE_COL_INDEX]))):
-            return float(HISTORY_DATA[row_index][BALANCE_COL_INDEX])
-    else:
-            return float(DEFAULT_NUMBER)
-    
-#===============================================================================
-def max_order(self, num):
-    ''' Return TRUE if the total numbers of a day equal the Orders Limit per Day '''
-
-    if self.ords_in_a_day == num: 
-        return(True)
-    elif self.ords_in_a_day < num: 
-        return(False)
-    else:
-        print("ERROR ==> The ords_in_a_day > OPENORDERSLIMITDAY")
-        log.info("ERROR ==> The ords_in_a_day > OPENORDERSLIMITDAY")
-        
-
 #===============================================================================
 DEFAULT_NUMBER = 0
 DEFAULT_SECOND_NUMBER = 1
@@ -409,17 +409,11 @@ OP_BUYLIMIT = 2.00
 OP_SELLLIMIT = 3.00
 OP_BUYSTOP = 4.00
 OP_SELLSTOP = 5.00
-# OP_BUY_CLOSED_TOTAL_ORDERS = -10.00
-# OP_BUY_CLOSED_TOTAL_ORDERS = -1.00
-# OP_DELETED_BUYLIMIT_TOTAL_ORDERS = -2.00
-# OP_DELETED_SELLLIMIT_TOTAL_ORDERS = -3.00
-# OP_DELETED_BUYSTOP_TOTAL_ORDERS = -4.00
-# OP_DELETED_SELLSTOP_TOTAL_ORDERS = -5.00
 
 DEPOSIT = 1000.00
 MAX_FITNESS = 100.00
 MAX_LOTS = 0.10
-NET_PROFIT = 360.00  # ==> $360
+NET_PROFIT = 360.00
 COMMISSION = 0.75
 LEVERAGE = 100.00
 ONE_LOT_VALUE = DEPOSIT * LEVERAGE
@@ -431,9 +425,9 @@ QUOTE_CURRENCY = 'USD'
 SCR_DIR_PATH = convert_backflash2forwardflash(str(os.path.dirname(os.getcwd())))
 FOLDER_DATA_INPUT = SCR_DIR_PATH + '/DataHandler/data/input/'
 FOLDER_DATA_OUTPUT = SCR_DIR_PATH + '/DataHandler/data/output/'
+FOLDER_TICK_DATA = 'USDJPY_Ticks_May2009_Nov2016'
 
-
-FILENAME_HISTORY_DATA = SYMBOL + '_M1_1day_2003.csv'
+FILENAME_TICK_DATA = SYMBOL + '_M1_1day_2003.csv'
 FILENAME_PARAMETER = 'default_parameters.csv'
 FILENAME_OPTIMIZE_PARAMETER = 'optimized_parameters.csv'
 FILENAME_POPULATION_INITIAL = 'population_initial.csv'
@@ -447,13 +441,13 @@ FILENAME_ORDER_CLOSED_HISTORY = 'order_closed_history.csv'
 FILENAME_ORDER_OPENED_HISTORY = 'order_opened_history.csv'
 FILENAME_DATE_DICT = 'data_date_dict.csv'
 
-MARKET_TIME_STANDARD = '01.01.1970_00:00:00'
-DATETIME_FORMAT = '%d.%m.%Y_%H:%M:%S'
-TIME_STAMP_FORMAT = '%Y.%m.%d_%H.%M.%S'
+MARKET_TIME_STANDARD = '1970.01.01_00:00:00.000'
+DATETIME_FORMAT = '%Y.%m.%d_%H:%M:%S.%f'
+TIME_STAMP_FORMAT = '%Y.%m.%d_%H.%M.%S.%f'
 
 HEADER_PARAMETER_FILE = ['Parameter', 'Value']
-HEADER_ORDER_HISTORY = ['Date', 'Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance'] 
-HEADER_HISTORY_DATA = ['Date', 'Time', 'Bid', 'Ask', 'Volume']
+HEADER_ORDER_DICT = ['Date_Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance'] 
+HEADER_TICK_DATA = ['Date_Time', 'Bid', 'Ask', 'Bid_NextTick', 'Ask_NextTick']
 OPTIMIZE_PARAMETERS_LIST = ['FilterSpread', 'Friday', 'OpenOrdersLimitDay', 'Time_closing_trades', 'Time_of_closing_in_hours',
                        'Profit_all_orders', 'Arrangements_of_trades', 'Lots']
 
@@ -461,12 +455,13 @@ OPTIMIZE_PARAMETERS_LIST = ['FilterSpread', 'Friday', 'OpenOrdersLimitDay', 'Tim
 #===============================================================================
 
 print('===============================================================================')
-print("==> Load HISTORY_DATA: %s ..." % (FOLDER_DATA_INPUT + FILENAME_HISTORY_DATA))
+print("==> Load TICK_DATA: %s ..." % (FOLDER_DATA_INPUT + FILENAME_TICK_DATA))
 log.info('===============================================================================')
-log.info("==> Load HISTORY_DATA: %s ..." % (FOLDER_DATA_INPUT + FILENAME_HISTORY_DATA))
-# Create HISTORY_DATA with CSV file
-HISTORY_DATA = load_csv2array(FOLDER_DATA_INPUT + FILENAME_HISTORY_DATA)
-display_an_array_with_delimiter(HISTORY_DATA, '    ')
+log.info("==> Load TICK_DATA: %s ..." % (FOLDER_DATA_INPUT + FILENAME_TICK_DATA))
+# Create TICK_DATA with CSV file
+# TICK_DATA = load_csv2array(FOLDER_DATA_INPUT + FILENAME_TICK_DATA)
+TICK_DATA = load_wholefolder2array(FOLDER_DATA_INPUT + FOLDER_TICK_DATA)
+display_an_array_with_delimiter(TICK_DATA, '    ')
 
 
 print("==> Load DEFAULT_PARAMETERS_DATA: %s ..." % (FOLDER_DATA_INPUT + FILENAME_PARAMETER))
@@ -511,25 +506,23 @@ EXCHANGE_RATE_USD['JPY'] = 0.00902088
 #===============================================================================
 #===============================================================================
 
-# HEADER_ORDER_HISTORY = ['Date', 'Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance'] 
-ORDER_TYPE_COL_INDEX = 2
-ORDER_ID_COL_INDEX = 3
-LOTS_COL_INDEX = 4
-PRICE_COL_INDEX = 5
-PROFIT_COL_INDEX = 8
-BALANCE_COL_INDEX = 9
+# HEADER_ORDER_DICT = ['Date_Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance'] 
+ORDER_TYPE_COL_INDEX = 1
+ORDER_ID_COL_INDEX = 2
+LOTS_COL_INDEX = 3
+PRICE_COL_INDEX = 4
+PROFIT_COL_INDEX = 7
+BALANCE_COL_INDEX = 8
 
-# HEADER_HISTORY_DATA = ['Date', 'Time', 'Bid', 'Ask', 'Volume']
-DATE_COL_INDEX = 0
-TIME_COL_INDEX = 1
-BID_COL_INDEX = 2
-ASK_COL_INDEX = 3
-VOLUME_COL_INDEX = 4
+# HEADER_TICK_DATA = ['Date_Time', 'Bid', 'Ask', 'Bid_NextTick', 'Ask_NextTick']
+DATETIME_COL_INDEX = 0
+BID_COL_INDEX = 1
+ASK_COL_INDEX = 2
+BID_NEXTTICK_COL_INDEX = 3
+ASK_NEXTTICK_COL_INDEX = 4
 
-DIGITS = digit_of_symbol(float(HISTORY_DATA[DEFAULT_NUMBER][BID_COL_INDEX]))
-POINT = point_of_symbol(float(HISTORY_DATA[DEFAULT_NUMBER][BID_COL_INDEX]))
+
+DIGITS = digit_of_symbol(float(TICK_DATA[DEFAULT_NUMBER][BID_COL_INDEX]))
+POINT = point_of_symbol(float(TICK_DATA[DEFAULT_NUMBER][BID_COL_INDEX]))
 print('===============================================================================')
 log.info('===============================================================================')
-
-#===============================================================================
-#===============================================================================
