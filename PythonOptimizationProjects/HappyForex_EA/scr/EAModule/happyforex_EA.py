@@ -5,36 +5,32 @@ Created on Dec 12, 2017
 '''
 #!/usr/bin/env python
 
+import cProfile
 import random
-import logging
+import logging.handlers
+import os
+import glob
 
-from datetime import datetime
-from DataHandler.happyforex_Datahandler import DIGITS, DEFAULT_NUMBER, DEPOSIT, DEFAULT_SECOND_NUMBER, POINT, ONE_LOT_VALUE, COMMISSION, \
-    DATETIME_FORMAT, MARKET_TIME_STANDARD, BALANCE_COL_INDEX, TICK_DATA, BID_COL_INDEX, ASK_COL_INDEX, TIME_STAMP_FORMAT, \
-    ORDER_TYPE_COL_INDEX, PRICE_COL_INDEX, LOTS_COL_INDEX, LEVERAGE, ORDER_ID_COL_INDEX, HOURS_OF_ADAY, \
-    FOLDER_DATA_OUTPUT, FILENAME_ORDER_CLOSED_HISTORY, FILENAME_ORDER_OPENED_HISTORY, FILENAME_DATE_DICT, NET_PROFIT, \
-    VALUE_COL_INDEX, OP_SELL, OP_BUY, OP_SELLLIMIT, OP_BUYLIMIT, MINUTES_OF_ANHOUR, DATETIME_COL_INDEX, PROFIT_COL_INDEX, \
-    convert_string_day2float, convert_string_time2float, convert_string_datetime2float, \
-    write_dict2csv_no_header, float_checker, \
-    write_array2csv_with_delimiter_no_header, copy_string_array, \
-    DEFAULT_PARAMETERS_DATA, FILENAME_OPTIMIZE_PARAMETER, OPTIMIZED_PARAMETERS_DATA
+from os import path, remove
+from datetime import datetime, date
+from DataHandler.hardcoded_data import DEFAULT_NUMBER, DEPOSIT, DEFAULT_SECOND_NUMBER, \
+    BALANCE_COL_INDEX, BID_COL_INDEX, ASK_COL_INDEX, FILENAME_LOG_EA, DEFAULT_PARAMETERS_DATA, \
+    ORDER_TYPE_COL_INDEX, LOTS_COL_INDEX, LEVERAGE, HOURS_OF_ADAY, \
+    FOLDER_DATA_OUTPUT, FILENAME_ORDER_CLOSED_HISTORY, FILENAME_ORDER_OPENED_HISTORY, NET_PROFIT, \
+    VALUE_COL_INDEX, OP_SELL, OP_BUY, OP_SELLLIMIT, OP_BUYLIMIT, DATETIME_COL_INDEX, PROFIT_COL_INDEX, \
+    FILENAME_OPTIMIZE_PARAMETER, ONE_LOT_VALUE, COMMISSION, OPTIMIZED_PARAMETERS_DATA, \
+    DAY_COL_INDEX, TIME_COL_INDEX, PRICE_ENTRY_COL_INDEX, PRICE_EXIT_COL_INDEX, \
+    FILENAME_PROFILE_EA, FOLDER_DATA_INPUT, TIME_STAMP_FORMAT, SYMBOL, FOLDER_TICK_DATA_MODIFIED, \
+    load_csv2array, point_of_symbol, display_an_array_with_delimiter, digit_of_symbol, \
+    write_dict2csv_no_header, write_array2csv_with_delimiter_no_header, convert_backflash2forwardflash, \
+    FILENAME_ORDER_DELETED_HISTORY, ORDER_ID_COL_INDEX, DATEOFFSET, \
+    MILLISECONDS_OF_ASECOND, SECONDS_OF_ANHOUR, SECONDS_OF_AMINUTE
     
 log = logging.getLogger(__name__)
-
-#===============================================================================
-def BrokerIs5Digit_0():
-    ''' Return TRUE if the Broker is the 5 Digits Broker '''
-
-    if (DIGITS == 5 or DIGITS == 3): 
-        return(True)
-    else:
-        return(False)
-
 
 ################################################################################
 #########################           CLASS           ############################
 ################################################################################        
-
 class HappyForexEA(object):
     '''
     classdocs
@@ -104,13 +100,14 @@ class HappyForexEA(object):
         self.total_loss = float(DEFAULT_NUMBER)
         self.total_orders = float(DEFAULT_NUMBER)
         self.ords_in_a_day = DEFAULT_NUMBER
-        self.current_datetime = ""
-        self.old_date = ""
+        self.current_datetime = float(DEFAULT_NUMBER)  # (year + month + day + hour + minute + second + millisecond in MILLISECOND)
+        self.current_day = float(DEFAULT_NUMBER)  # (year + month + day in DAYS)
+        self.current_time = float(DEFAULT_NUMBER)  # (hour + minute + second + millisecond in MILLISECOND)
         self.bid_price = float(DEFAULT_NUMBER)
         self.ask_price = float(DEFAULT_NUMBER)
         self.mode_spread = float(DEFAULT_NUMBER)
         self.order_ID_dict = {}  # a dictionary (as a hash-map) for storing ID
-            
+        
         self.SpreadMax = float(DEFAULT_NUMBER)
         self.Hour_of_trading_from = DEFAULT_NUMBER
         self.Hour_of_trading_to = DEFAULT_NUMBER
@@ -124,20 +121,18 @@ class HappyForexEA(object):
         self.CurrentProfit = float(DEFAULT_NUMBER)
         self.equity = self.balance + self.CurrentProfit
         
-        # Create a dictionary (as a hash-map) for storing Closed and Deleted orders with KEY is OrderID
+        # Create dictionaries for storing Closed, Deleted, and Opened/Pending orders with KEY is OrderID
         self.ORDER_CLOSED_DICT = {} 
-        
-        # Create a dictionary (as a hash-map) for storing Opened and Pending orders with KEY is OrderID
         self.ORDER_OPENED_DICT = {} 
+        self.ORDER_DELETED_DICT = {} 
         
-        # Create a dictionary (as a hash-map) for storing Opened and Pending orders with KEY is OrderID
-        self.DATE_DATA_DICT = {} 
-        
+        # Create a list for storing the Tick data
+        self.TICK_DATA = []
         
         # old variables from EA
-        self.NDigits = DIGITS
+        self.NDigits = float(DEFAULT_SECOND_NUMBER)
         self.PipValue = float(DEFAULT_SECOND_NUMBER)
-        self.my_point = POINT
+        self.my_point = float(DEFAULT_SECOND_NUMBER)
         
         self.ATR_Period = 7.0
         self.ATRPeriod1 = 3.0
@@ -172,9 +167,148 @@ class HappyForexEA(object):
         self.RMStatus = ""
         
         self.clear = False
+    
     #===============================================================================
-    # create all parameters for running EA
+    def reset(self):
+        '''
+        Constructor
+        '''
+        # get the total parameters for running EA
+        self.NAME_EA = ""
+        self.MAGIC = DEFAULT_NUMBER
+        self.FILTERSPREAD = False
+        self.SPREADMAX = float(DEFAULT_NUMBER)
+        self.A = ""
+        self.MONDAY = False
+        self.TUESDAY = False
+        self.WEDNESDAY = False
+        self.THURSDAY = False
+        self.FRIDAY = False
+        self.SATURDAY = False
+        self.SUNDAY = False
+        self.B = ""
+        self.TRADING_24H = False
+        self.GMT_OFFSET = DEFAULT_NUMBER
+        self.HOUR_OF_TRADING_FROM = DEFAULT_NUMBER
+        self.HOUR_OF_TRADING_TO = DEFAULT_NUMBER
+        self.USE_ORDERSLIMIT = False
+        self.OPENORDERSLIMITDAY = DEFAULT_NUMBER
+        self.C = ""
+        self.TIME_CLOSING_TRADES = False
+        self.TIME_OF_CLOSING_IN_HOURS = DEFAULT_NUMBER
+        self.TIME_OF_CLOSING_IN_MINUTES = DEFAULT_NUMBER
+        self.D = ""
+        self.PROFIT = False
+        self.PROFIT_ALL_ORDERS = float(DEFAULT_NUMBER)
+        self.E = ""
+        self.OPENORDERSLIMIT = DEFAULT_NUMBER
+        self.SINGLEORDERSL = float(DEFAULT_NUMBER)
+        self.SINGLEORDERTP = float(DEFAULT_NUMBER)
+        self.F = ""
+        self.ARRANGEMENTS_OF_TRADES = float(DEFAULT_NUMBER)
+        self.G = ""
+        self.LOTS = float(DEFAULT_NUMBER)
+        self.SLIPPAGE = float(DEFAULT_NUMBER)
+        self.H = ""
+        self.SET_UP_OF_LOSS = False
+        self.AMOUNT_OF_LOSS = float(DEFAULT_NUMBER)
+        self.I = ""
+        self.CLOSING_OF_ALL_TRADES = False
+        self.J = ""
+        self.USENEWSFILTER = False
+        self.MINSBEFORENEWS = DEFAULT_NUMBER
+        self.MINSAFTERNEWS = DEFAULT_NUMBER
+        self.NEWSIMPACT = DEFAULT_NUMBER
+        self.K = ""
+        self.FILTERING = False
+        self.L = ""
+        self.AUTOEQUITYMANAGER = False
+        self.EQUITYGAINPERCENT = float(DEFAULT_NUMBER)
+        self.SAFEEQUITYSTOPOUT = False
+        self.SAFEEQUITYRISK = float(DEFAULT_NUMBER)
+
+        # new variables which will be changed in the class
+        self.total_win = float(DEFAULT_NUMBER) 
+        self.total_loss = float(DEFAULT_NUMBER)
+        self.total_orders = float(DEFAULT_NUMBER)
+        self.ords_in_a_day = DEFAULT_NUMBER
+        self.current_datetime = float(DEFAULT_NUMBER)  # (year + month + day + hour + minute + second + millisecond in MILLISECOND)
+        self.current_day = float(DEFAULT_NUMBER)  # (year + month + day in DAYS)
+        self.current_time = float(DEFAULT_NUMBER)  # (hour + minute + second + millisecond in MILLISECOND)
+        self.bid_price = float(DEFAULT_NUMBER)
+        self.ask_price = float(DEFAULT_NUMBER)
+        self.mode_spread = float(DEFAULT_NUMBER)
+        self.order_ID_dict = {}  # a dictionary (as a hash-map) for storing ID
+            
+        self.SpreadMax = float(DEFAULT_NUMBER)
+        self.Hour_of_trading_from = DEFAULT_NUMBER
+        self.Hour_of_trading_to = DEFAULT_NUMBER
+        self.Time_of_closing_in_hours = DEFAULT_NUMBER
+        self.Time_of_closing_in_minutes = DEFAULT_NUMBER
+        self.Time_closing_trades = False
+        self.Lots = float(DEFAULT_NUMBER)
+        self.Slippage = float(DEFAULT_NUMBER)
         
+        self.balance = DEPOSIT
+        self.CurrentProfit = float(DEFAULT_NUMBER)
+        self.equity = self.balance + self.CurrentProfit
+        
+        # Create a dictionary (as a hash-map) for storing Closed, Deleted, and Opened/Pending orders with KEY is OrderID
+        self.ORDER_CLOSED_DICT = {} 
+        self.ORDER_OPENED_DICT = {} 
+        self.ORDER_DELETED_DICT = {} 
+       
+        # Create a list for storing the Tick data
+        self.TICK_DATA = []
+        
+        # old variables from EA
+        self.NDigits = float(DEFAULT_SECOND_NUMBER)
+        self.PipValue = float(DEFAULT_SECOND_NUMBER)
+        self.my_point = float(DEFAULT_SECOND_NUMBER)
+        
+        self.ATR_Period = 7.0
+        self.ATRPeriod1 = 3.0
+        self.ATRPeriod2 = 5.0 
+        self.ATRUpLimit1 = 13.0
+        self.ATRDnLimit1 = 7.0
+        self.ATRUpLimit2 = 21.0 
+        self.ATRDnLimit2 = 16.0
+        self.ATRUpLimit3 = 28.0
+        self.ATRDnLimit3 = 25.0
+        self.DeletePOATR = True      
+        self.DeleteOrderATR = False
+        
+        self.LF = "\n"  
+        self.ObjCount = DEFAULT_NUMBER  
+        self.FirstTime33 = False
+        self.FirstTime35 = False
+        self.Today6 = -1
+        self.Count32 = DEFAULT_NUMBER
+        self.dblProfit = float(DEFAULT_NUMBER)
+        self.ATR = ""
+        self.Trading = ""
+        self.OrderCounter = DEFAULT_NUMBER  # total Opened and Pending orders
+        self.SellOrderExists = False
+        self.BuyOrderExists = False
+        self.BuyPOExists = False
+        self.SellPOExists = False
+        self.Overide = False
+        self.Hour1 = DEFAULT_SECOND_NUMBER
+        self.Minute1 = DEFAULT_NUMBER
+        self.MagicChange = ""
+        self.RMStatus = ""
+        
+        self.clear = False
+
+    #===============================================================================
+    def BrokerIs5Digit_0(self):
+        ''' Return TRUE if the Broker is the 5 Digits Broker '''
+    
+        if (self.NDigits == 5 or self.NDigits == 3): 
+            return(True)
+        else:
+            return(False)
+
     #===============================================================================
     def CalculateProfit_5(self, entry_price, exit_price, lots, order_type):
         ''' Calculates the profit or loss of a position in the home currency of the account. 
@@ -218,13 +352,11 @@ class HappyForexEA(object):
         '''Create the unique order ID. Return -1 when cannot generate an order ID. '''
         
         # create the unique order ID which is the combination of all Values of parameters
-        new_id = (convert_string_datetime2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT) 
-                  + float(datetime.now().second))
+        new_id = self.current_datetime + float(datetime.now().second)
         
         # keep create an individual while the ID is not unique
         while (new_id in self.order_ID_dict):
-            new_id = (convert_string_datetime2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT) 
-                  + float(datetime.now().second))
+            new_id = self.current_datetime + float(datetime.now().second)
         
         # save new ID into the ID dictionary
         self.order_ID_dict[new_id] = order_type
@@ -236,66 +368,54 @@ class HappyForexEA(object):
         ''' Return TRUE if the total number of orders in a day equal the Orders limit per day
             and delete all pending order in Opened and Pending orders pool when max orders reached '''
         
-        ords = DEFAULT_NUMBER
-        CurrentDay = convert_string_day2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
-        order_type = -1
+        ords = self.ords_in_a_day
         
         if (self.USE_ORDERSLIMIT == False): 
             return False
         
-        # ORDER_OPENED_DICT = {order_id: ['Date', 'Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']}
-        # get all Opened and Pending orders in the pool
-        for order_id in self.ORDER_OPENED_DICT.keys():
-            # --> get the date-time of the opened/pending orders
-            opened_order = self.ORDER_OPENED_DICT[order_id]
-            OrderOpenTime = opened_order[DATETIME_COL_INDEX]
-            
-            # --> count orders when orders are BUY/SELL and in the current day (replace for: iBarShift(NULL,PERIOD_D1,OrderOpenTime())==0)
-            order_type = self.OrderType_5(order_id, self.ORDER_OPENED_DICT)
-            if (order_type < 2.00 and OrderOpenTime == CurrentDay):
-                ords += DEFAULT_SECOND_NUMBER
-        
-        # get all Closed and Deleted orders in the pool
-        for order_id in self.ORDER_CLOSED_DICT.keys():
-            # --> get the date-time of the closed/deleted orders and current date-time
-            closed_order = self.ORDER_CLOSED_DICT[order_id]
-            OrderClosedTime = closed_order[DATETIME_COL_INDEX]
-            
-            # --> count orders when orders are BUY/SELL and in the current day (replace for: iBarShift(NULL,PERIOD_D1,OrderOpenTime())==0)
-            order_type = self.OrderType_5(order_id, self.ORDER_CLOSED_DICT)
-            if (order_type < 2.00 and OrderClosedTime == CurrentDay):
-                ords += DEFAULT_SECOND_NUMBER
+#         # ORDER_OPENED_DICT = {order_id: ['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']}
+#         # get all Opened and Pending orders in the pool
+#         for order_id in self.ORDER_OPENED_DICT.keys():
+#             # --> get the date-time of the opened/pending orders
+#             opened_order = self.ORDER_OPENED_DICT[order_id]
+#             order_type = opened_order[ORDER_TYPE_COL_INDEX]
+#             OrderOpenTime = opened_order[DAY_COL_INDEX]
+#             
+#             # --> count orders when orders are BUY/SELL and in the current day (replace for: iBarShift(NULL,PERIOD_D1,OrderOpenTime())==0)
+#             if (order_type < 2.00 and OrderOpenTime == self.current_day):
+#                 ords += DEFAULT_SECOND_NUMBER
+#         
+#         # get all Closed orders in the pool
+#         for order_id in self.ORDER_CLOSED_DICT.keys():
+#             # --> get the date-time of the closed/deleted orders and current date-time
+#             closed_order = self.ORDER_CLOSED_DICT[order_id]
+#             order_type = closed_order[ORDER_TYPE_COL_INDEX]
+#             OrderClosedTime = float(closed_order[DAY_COL_INDEX])
+#             
+#             # --> count orders when orders are BUY/SELL and in the current day (replace for: iBarShift(NULL,PERIOD_D1,OrderOpenTime())==0)
+#             if (order_type < 2.00 and OrderClosedTime == self.current_day):
+#                 ords += DEFAULT_SECOND_NUMBER
         
         # delete all pending order in Opened and Pending orders pool when max orders reached
         if (ords >= num):
             # get all Opened and Pending orders in the pool
             for order_id in self.ORDER_OPENED_DICT.keys():
-                # --> delete orders when they are BUYLIMIT/SELLLIMIT
-                order_type = self.OrderType_5(order_id, self.ORDER_OPENED_DICT)
+               
+                order = self.ORDER_OPENED_DICT[order_id]
+                order_type = order[ORDER_TYPE_COL_INDEX]
+            
                 if (order_type > 1.00):
+                    # --> delete orders when they are BUYLIMIT/SELLLIMIT
                     self.OrderDelete_4(order_id, self.ORDER_OPENED_DICT)
+                    
+                    # --> save this deleted orders in the Deleted orders pool
+                    self.OrderAdd_10(order_id, order, self.ORDER_DELETED_DICT)
     
             # max number of orders reached
             return True  
         else:
             return False
         
-        ''' 
-        # SKIP from the original EA
-        if ((OrderSelect(k,SELECT_BY_POS,MODE_TRADES))&&(OrderSymbol()==Symbol())&&(OrderMagicNumber()==Magic))s
-            if (self.OrderType_5() < 2 and iBarShift(NULL,PERIOD_D1,OrderOpenTime())==0):
-                    ords += 0
-                     
-        for( k=OrdersHistoryTotal()-1;k>=0;k--)
-        {
-           if((OrderSelect(k,SELECT_BY_POS,MODE_HISTORY))&&(OrderSymbol()==Symbol())&&(OrderMagicNumber()==Magic))
-           {
-              if(OrderType_5() < 2 && iBarShift(NULL,PERIOD_D1,OrderOpenTime())==0 )
-                 ords++;
-           }
-        }
-         
-        '''
     #===============================================================================
     def ProfitCheck_3(self):
         ''' Return Profit of all closed trades following the '''
@@ -305,19 +425,15 @@ class HappyForexEA(object):
         if (len(self.ORDER_OPENED_DICT) == DEFAULT_NUMBER and len(self.ORDER_CLOSED_DICT) == DEFAULT_NUMBER):
             return net_profit
         else:
-            # get all the profits from Closed and Deleted orders
+            # get all the profits from Closed orders pool
             for order_id in self.ORDER_CLOSED_DICT.keys():  # The order of the k's is not defined
                 order = self.ORDER_CLOSED_DICT[order_id]
-                
-                if float_checker(order[PROFIT_COL_INDEX]):
-                    net_profit += order[PROFIT_COL_INDEX]
+                net_profit += order[PROFIT_COL_INDEX]
                     
-            # get all the profits from Opened and Pending orders
+            # get all the profits from Opened and Pending orders pool
             for order_id in self.ORDER_OPENED_DICT.keys():  # The order of the k's is not defined
                 order = self.ORDER_OPENED_DICT[order_id]
-    
-                if float_checker(order[PROFIT_COL_INDEX]):
-                    net_profit += order[PROFIT_COL_INDEX]
+                net_profit += order[PROFIT_COL_INDEX]
             
         return net_profit
         
@@ -330,65 +446,74 @@ class HappyForexEA(object):
         if (len(self.ORDER_OPENED_DICT) == DEFAULT_NUMBER and len(self.ORDER_CLOSED_DICT) == DEFAULT_NUMBER):
             return account_bal
         else:
-            # get all the balance from Closed and Deleted orders
+            # get all the balance from Closed orders pool
             for order_id in self.ORDER_CLOSED_DICT.keys():  # The order of the k's is not defined
+
                 order = self.ORDER_CLOSED_DICT[order_id]
-                
-                if (float_checker(order[BALANCE_COL_INDEX]) and order[BALANCE_COL_INDEX] > account_bal):
+                if (order[BALANCE_COL_INDEX] > account_bal):
                     account_bal = order[BALANCE_COL_INDEX]
     
-            # get all the balance from Opened and Pending orders
+            # get all the balance from Opened and Pending orders pool
             for order_id in self.ORDER_OPENED_DICT.keys():  # The order of the k's is not defined
+
                 order = self.ORDER_OPENED_DICT[order_id]
-                
-                if (float_checker(order[BALANCE_COL_INDEX]) and order[BALANCE_COL_INDEX] > account_bal):
+                if (order[BALANCE_COL_INDEX] > account_bal):
                     account_bal = order[BALANCE_COL_INDEX]
 
         return account_bal
     
     #===============================================================================
     def DayOfWeek_3(self):
-        ''' Return the current zero-based day of the week (0-Monday,1,2,3,4,5,6) of the system time. '''
-    
-        return datetime.today().weekday()
+        ''' Return the current zero-based day of the week (0-Monday,1,2,3,4,5,6) 
+        for the Tick data. '''
+        
+        # get back the date from number
+        scurrentday = date.fromordinal(DATEOFFSET + int(self.current_day))
+        
+        # slit date into year, month, and day
+        dividend = str(scurrentday).split('-')
+        year = dividend[DEFAULT_NUMBER]
+        month = dividend[DEFAULT_SECOND_NUMBER]
+        day = dividend[DEFAULT_SECOND_NUMBER + DEFAULT_SECOND_NUMBER]
+        
+        # get the day of the week from selected date
+        day_of_week = date(int(year), int(month), int(day)).weekday()
+        
+        return day_of_week
     
     #===============================================================================
     def TimeHour_4(self):
-        ''' Return the Hour of current time. '''
+        ''' Return the Hour of the Tick data. '''
     
-        return datetime.now().hour
+        # hr_min_sec_ms = self.current_time
+        hour_minute_second = int(self.current_time / MILLISECONDS_OF_ASECOND) 
+        
+        hour_tick = int(hour_minute_second / SECONDS_OF_ANHOUR)
+        
+        return hour_tick
     
     #===============================================================================
     def TimeMinute_3(self):
-        ''' Return the Minute of current time. '''
-    
-        return datetime.now().minute
+        ''' Return the Minute of the Tick data. '''
+        
+        # hr_min_sec_ms = self.current_time
+        hour_minute_second = int(self.current_time / MILLISECONDS_OF_ASECOND) 
+        
+        minute_tick = int(hour_minute_second % SECONDS_OF_ANHOUR / SECONDS_OF_AMINUTE)
+        
+        return minute_tick
     
     #===============================================================================
-    def MODE_SPREAD_1(self, row_index):
+    def MODE_SPREAD_1(self, bid_price, ask_price):
         ''' Return spread of one record in TICK_DATA. '''
     
-        spread = abs(float(TICK_DATA[row_index][BID_COL_INDEX]) 
-             - float(TICK_DATA[row_index][ASK_COL_INDEX]))
+        spread = abs(bid_price - ask_price)
         
-        for i in range(DIGITS):
+        for i in range(self.NDigits):
             spread *= float(10)
         
         return spread
     
-#     #===============================================================================
-#     def OrdersHistoryTotal(self):
-#         ''' Return total number of Closed and Deleted orders. '''
-#         
-#         return len(self.ORDER_CLOSED_DICT)
-#         
-#         
-#     #===============================================================================
-#     def OrdersTotal(self):
-#         ''' Return total number of Opened and Pending orders. Return -1 when there is no order'''
-#         
-#         return len(self.ORDER_OPENED_DICT)
-#         
     #===============================================================================
     def OrderType_5(self, order_id, dict_data):
         ''' Return order type of a record in the data. 
@@ -398,20 +523,16 @@ class HappyForexEA(object):
             OP_SELLLIMIT    = 3.00
             OP_BUYSTOP      = 4.00
             OP_SELLSTOP     = 5.00 '''
-    
+        
+        order_type = -1
+        
         if (len(dict_data) != DEFAULT_NUMBER):
             order = dict_data[order_id]
-            
-            if (order[ORDER_TYPE_COL_INDEX] != "" and float_checker(float(order[ORDER_TYPE_COL_INDEX]))):
-                return float(order[ORDER_TYPE_COL_INDEX])
-            else:
-                # print("There is NO type for this order")
-                log.info("There is NO type for this order")
-                return -1.00
+            order_type = float(order[ORDER_TYPE_COL_INDEX])
         else:
-                # print("There is NO data. Data size = 0")
-                log.info("There is NO data. Data size = 0")
-                return -1.00
+            log.info("There is NO data. Data size = 0")
+                
+        return order_type
     
     #===============================================================================
     def OrderDelete_4(self, order_id, dict_data):
@@ -420,10 +541,8 @@ class HappyForexEA(object):
         # delete the order if it's existed in the data
         if (order_id in dict_data):
             del dict_data[order_id]
-#             print("Oder %s has been deleted." % order_id)
             return True
         else:
-            # print("There's NO %s in data. Data is the same as before deleting." % order_id)
             log.info("There's NO %s in data. Data is the same as before deleting." % order_id)
             return False
         
@@ -433,168 +552,88 @@ class HappyForexEA(object):
     
         # add the order if it's NOT existed in the data
         if (order_id in dict_data):
-            # print("There's the oder %s in data already." % order_id)
             log.info("There's the oder %s in data already." % order_id)
             return False
         else:
             # add order to the data
             dict_data[order_id] = order
-#             print("Oder %s has been added." % order_id)
             return True
         
     #===============================================================================
-    def OrderClose_4(self, order_id, order_type):
+    def OrderClose_4(self, order, order_id, order_type):
         ''' Close a specific old_opended_order in data by:
         * deleting this order in the Opened and Pending orders pool 
         * update the new values for this order from Opened to Close position
-        * and save this deleted order in the Closed and Deleted orders pool'''
+        * and save this deleted order in the Closed orders pools'''
         
-        new_closed_order = self.ORDER_OPENED_DICT[order_id]
-        flag_order_closed = False
-        entry_price = new_closed_order[PRICE_COL_INDEX]
-        exit_price = float(DEFAULT_NUMBER)
-        flag_added = False
+        flag_order_closed = True
         
-        if (order_type == OP_BUY):
-            exit_price = self.bid_price
-            
-            if (entry_price <= exit_price):
-                flag_order_closed = True
-            else:
-                # print("Error closing order OP_BUY %s as: entry_price<=exit_price (%s<=%s)" % (order_id, entry_price, exit_price))
-                log.info("Error closing order OP_BUY %s as: entry_price<=exit_price (%s<=%s)" % (order_id, entry_price, exit_price))
-                
-        elif (order_type == OP_SELL):
-            exit_price = self.ask_price
-            
-            if (entry_price >= exit_price):
-                flag_order_closed = True
-            else:
-                # print("Error closing order OP_SELL %s %s as: entry_price>=exit_price (%s>=%s)" % (order_id, entry_price, exit_price))
-                log.info("Error closing order OP_SELL %s %s as: entry_price>=exit_price (%s>=%s)" % (order_id, entry_price, exit_price))
-                
-        else:
-            # print("This order %s not a BUY or SELL order!" % order_id)
-            log.info("This order %s not a BUY or SELL order!" % order_id)
-                
-        # when the order can be closed
-        if (flag_order_closed):
-        
+        # get the specific order
+        new_closed_order = order
+         
+        if (order_type == OP_BUY or order_type == OP_SELL):
+            # ORDER_OPENED_DICT[] = ['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']
             # delete this order in the Opened and Pending orders pool
-            flag_deleted = self.OrderDelete_4(order_id, self.ORDER_OPENED_DICT)
-            
-            if (flag_deleted):
-                '''When you go long, you enter the market at the ASK price and exit the market at BID price.
-                When you go short, you enter the market at the BID price and exit at the ASK price.'''
-                # ORDER_OPENED_DICT[] = ['Date', 'Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']
+            if (self.OrderDelete_4(order_id, self.ORDER_OPENED_DICT)):
+                 
                 # update the new values for this order from Opened to Close position
-                
-                lots = new_closed_order[LOTS_COL_INDEX]
-                profit = self.CalculateProfit_5(entry_price, exit_price, lots, order_type)
-                
+                profit = new_closed_order[PROFIT_COL_INDEX]
                 self.CurrentProfit = self.CurrentProfit + profit
                 self.balance = self.balance + profit
-                
-                new_closed_order[DATETIME_COL_INDEX] = convert_string_datetime2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
-                new_closed_order[PROFIT_COL_INDEX] = profit
-                new_closed_order[PRICE_COL_INDEX] = exit_price
+                 
+                new_closed_order[DATETIME_COL_INDEX] = self.current_datetime
+                new_closed_order[DAY_COL_INDEX] = self.current_day
+                new_closed_order[TIME_COL_INDEX] = self.current_time
                 new_closed_order[BALANCE_COL_INDEX] = self.balance 
-                
-                        
-                # save this deleted order in the Closed and Deleted orders pool
-                flag_added = self.OrderAdd_10(order_id, new_closed_order, self.ORDER_CLOSED_DICT)
-                
-                if (flag_added == False):
-                    # print("Error closing order %s as cannot add into Closed and Deleted orders pool." % order_id)
-                    log.info("Error closing order %s as cannot add into Closed and Deleted orders pool." % order_id)
-                    
+                 
+                # save this NEW Closed order in the Closed orders pool
+                flag_order_closed = self.OrderAdd_10(order_id, new_closed_order, self.ORDER_CLOSED_DICT)    
             
+            else:
+                flag_order_closed = False
+            
+        return flag_order_closed
+         
     #===============================================================================
     def DeletePendingOrder19_3(self):
         ''' Delete an order OP_SELLLIMIT in the Opened and Pending order pool. '''
     
-        ''' retry = 10     # SKIP from original EA
-        res = False    # SKIP from original EA '''
-        
         # get all Opened and Pending orders in the pool
-        # ORDER_OPENED_DICT = {order_id: ['Date', 'Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']}
+        # ORDER_OPENED_DICT = {order_id: ['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']}
         for order_id in self.ORDER_OPENED_DICT.keys():
-            
+            order = self.ORDER_OPENED_DICT[order_id]
+            order_type = order[ORDER_TYPE_COL_INDEX]
+                
             # when the order is OP_SELLLIMIT
-            if self.OrderType_5(order_id, self.ORDER_OPENED_DICT) == OP_SELLLIMIT:
-                
+            if (order_type == OP_SELLLIMIT):
                 # --> delete this OP_SELLLIMIT in the Opened and Pending orders pool
-                order = self.ORDER_OPENED_DICT[order_id]
-                flag_deleted = self.OrderDelete_4(order_id, self.ORDER_OPENED_DICT)
-               
-                if (flag_deleted):
-                    # --> update date time and save this deleted OP_SELLLIMIT in the Closed and Deleted orders pool
-                    order[DATETIME_COL_INDEX] = convert_string_datetime2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
-                    self.OrderAdd_10(order_id, order, self.ORDER_CLOSED_DICT)
-        
-        ''' 
-        # SKIP from original EA
-        for (int i=OrdersTotal()-1; i >= 0; i--)
-        {
-            if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES))      
-                while(IsTradeContextBusy()) Sleep(100);
-                
-                while(retry > 0 && !res)
-                {
-                   res = OrderDelete_4(OrderTicket());
-                   retry--;
-                   Sleep(500);
-                }
-                
-                if(res == false)
-                {
-                    Print("OrderDelete_4() error - ", ErrorDescription(GetLastError()));
-                }
-        '''
+                if (self.OrderDelete_4(order_id, self.ORDER_OPENED_DICT)):
+                    # --> update date time and save this deleted OP_SELLLIMIT in the Deleted orders pool
+                    order[DATETIME_COL_INDEX] = self.current_datetime
+                    order[DAY_COL_INDEX] = self.current_day
+                    order[TIME_COL_INDEX] = self.current_time
+                    self.OrderAdd_10(order_id, order, self.ORDER_DELETED_DICT)
         
     #===============================================================================
     def DeletePendingOrder18_3(self):
         ''' Delete an order OP_BUYLIMIT in the Opened and Pending order pool. '''
-    
-        ''' retry = 10     # SKIP from original EA
-        res = False    # SKIP from original EA '''
         
         # get all Opened and Pending orders in the pool
-        # ORDER_OPENED_DICT = {order_id: ['Date', 'Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']}
+        # ORDER_OPENED_DICT = {order_id: ['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']}
         for order_id in self.ORDER_OPENED_DICT.keys():
+            order = self.ORDER_OPENED_DICT[order_id]
+            order_type = order[ORDER_TYPE_COL_INDEX]
             
             # when the order is OP_BUYLIMIT
-            if self.OrderType_5(order_id, self.ORDER_OPENED_DICT) == OP_BUYLIMIT:
-                
+            if (order_type == OP_BUYLIMIT):
                 # --> delete this OP_BUYLIMIT in the Opened and Pending orders pool
-                order = self.ORDER_OPENED_DICT[order_id]
-                flag_deleted = self.OrderDelete_4(order_id, self.ORDER_OPENED_DICT)
-               
-                if (flag_deleted):
-                    # --> update date time and save this deleted OP_BUYLIMIT in the Closed and Deleted orders pool
-                    order[DATETIME_COL_INDEX] = convert_string_datetime2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
-                    self.OrderAdd_10(order_id, order, self.ORDER_CLOSED_DICT)
+                if (self.OrderDelete_4(order_id, self.ORDER_OPENED_DICT)):
+                    # --> update date time and save this deleted OP_BUYLIMIT in the Deleted orders pool
+                    order[DATETIME_COL_INDEX] = self.current_datetime
+                    order[DAY_COL_INDEX] = self.current_day
+                    order[TIME_COL_INDEX] = self.current_time
+                    self.OrderAdd_10(order_id, order, self.ORDER_DELETED_DICT)
         
-        ''' 
-        # SKIP from original EA
-        for (int i=OrdersTotal()-1; i >= 0; i--)
-        {
-            if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES))      
-                while(IsTradeContextBusy()) Sleep(100);
-        
-                while(retry > 0 && !res)
-                {
-                   res = OrderDelete_4(OrderTicket());
-                   retry--;
-                   Sleep(500);
-                }
-                
-                if(res == false)
-                {
-                    Print("OrderDelete_4() error - ", ErrorDescription(GetLastError()));
-                }
-        '''
-            
     #===============================================================================
     def CheckLastOrderType33_4(self):
         ''' Check the last order and delete the pending OP_SELLLIMIT order when the last order was OP_SELL. '''
@@ -602,21 +641,16 @@ class HappyForexEA(object):
         orderType = -1.00
         lastCloseTime = float(DEFAULT_NUMBER)
 
-        ''' int cnt = OrdersHistoryTotal();  # SKIP from origin EA '''
-        
-        # get all Closed and Deleted orders in the pool
-        # ORDER_CLOSED_DICT = {order_id: ['Date', 'Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']}
+        # get all Closed orders in the pool
+        # ORDER_CLOSED_DICT = {order_id:['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']}
         for order_id in self.ORDER_CLOSED_DICT.keys():
-            '''  if (!OrderSelect(i, SELECT_BY_POS, MODE_HISTORY)) continue;  # SKIP from origin EA '''
+
             closed_order = self.ORDER_CLOSED_DICT[order_id]
             OrderCloseTime = closed_order[DATETIME_COL_INDEX]
             
-#             order_time = str(closed_order[DATETIME_COL_INDEX] + "_" + closed_order[TIME_COL_INDEX])
-#             OrderCloseTime = convert_string_datetime2float(order_time, MARKET_TIME_STANDARD, DATETIME_FORMAT)
-            
             if (lastCloseTime < OrderCloseTime):
                 lastCloseTime = OrderCloseTime
-                orderType = self.OrderType_5(order_id, self.ORDER_CLOSED_DICT)
+                orderType = closed_order[ORDER_TYPE_COL_INDEX]
         
         # delete the opened OP_SELLLIMIT orders when the last order was OP_SELL
         if (orderType == OP_SELL or self.FirstTime33):
@@ -627,52 +661,43 @@ class HappyForexEA(object):
     def MathMax_6(self, float_num_1, float_num_2):
         max_number = float(DEFAULT_NUMBER)
     
-        if (float_checker(float_num_1) and float_checker(float_num_2)):
-            if float_num_1 >= float_num_2:
-                max_number = float_num_1
-            else:
-                max_number = float_num_2
+        if float_num_1 >= float_num_2:
+            max_number = float_num_1
         else:
-            # print("Either or both of two numbers is not a float number")
-            log.info("Either or both of two numbers is not a float number")
-                       
+            max_number = float_num_2
+                
         return max_number
     
     #===============================================================================
     def NormalizeDouble_9(self, float_num, digit_num):
         
-        if (float_checker(float_num)):
-            list_normalized_num = str_num = list(str(float_num))
+        list_normalized_num = str_num = list(str(float_num))
             
-            for i in range(len(str_num)):
-                if (str_num[i] == '.'):
-                    # only normalize when numbers of digit numbers after decimal point matching input digit
-                    if (len(str_num) - i > i + digit_num):
-                        # get all digits from float number until the expected digit number after decimal point
-                        for j in range(i + digit_num):
-                            list_normalized_num[j] = str_num[j]
-                        
-                        # assign the rest of the expected float number
-                        k = len(str_num) - DEFAULT_SECOND_NUMBER
-                        while (k > i + digit_num):
-                            if (digit_num == DEFAULT_NUMBER):
-                                list_normalized_num[k] = '0'
-                            else:
-                                list_normalized_num[k] = '9'
-                            k -= DEFAULT_SECOND_NUMBER    
-                        
-                    break
-            
-            str_normalized_num = ''.join(list_normalized_num)
-            
-            return float(str_normalized_num)
-        else:
-            # print("Cannot normalize the number.")
-            log.info("Cannot normalize the number.")
-            return float_num
-    
+        for i in range(len(str_num)):
+            if (str_num[i] == '.'):
+                # only normalize when numbers of digit numbers after decimal point matching input digit
+                if (len(str_num) - i > i + digit_num):
+                    # get all digits from float number until the expected digit number after decimal point
+                    for j in range(i + digit_num):
+                        list_normalized_num[j] = str_num[j]
+                    
+                    # assign the rest of the expected float number
+                    k = len(str_num) - DEFAULT_SECOND_NUMBER
+                    while (k > i + digit_num):
+                        if (digit_num == DEFAULT_NUMBER):
+                            list_normalized_num[k] = '0'
+                        else:
+                            list_normalized_num[k] = '9'
+                        k -= DEFAULT_SECOND_NUMBER    
+                    
+                break
+        
+        str_normalized_num = ''.join(list_normalized_num)
+        
+        return float(str_normalized_num)
+        
     #===============================================================================
-    def OrderSend_9(self, order_id, order_type, order_lots, order_price, order_slippage, order_sl, order_tp, order_expire):
+    def OrderSend_9(self, order_id, order_type, order_lots, order_price, order_slippage, order_sl, order_tp):
         ''' In this EA, this function is to place a Pending order OP_BUYLIMIT or OP_SELLLIMIT. 
         * return False when the order is not a Pending order.
         * order_slippage: Maximum price slippage (for buy or sell orders only). 
@@ -680,10 +705,10 @@ class HappyForexEA(object):
 
         # calculate slippage_in_decimal
         slippage_in_decimal = order_slippage
-        for i in range(DIGITS):
+        for i in range(self.NDigits):
             slippage_in_decimal /= float(10)
 
-        # ORDER_OPENED_DICT = {order_id: ['Date', 'Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']}
+        # ORDER_OPENED_DICT = {order_id: ['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']}
         
         if (order_type != OP_BUYLIMIT and order_type != OP_SELLLIMIT):
             # print("This is not a Pending order OP_BUYLIMIT or OP_SELLLIMIT. Its type is %s." % (order_id, order_type))
@@ -697,11 +722,14 @@ class HappyForexEA(object):
             elif (order_type == OP_SELLLIMIT):
                 entry_price = order_price - slippage_in_decimal
             
-            order = [convert_string_datetime2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT),
+            order = [self.current_datetime,
+                     self.current_day,
+                     self.current_time,
                      order_type,
                      order_id,
                      order_lots,
                      round(entry_price, self.NDigits),
+                     float(DEFAULT_NUMBER),
                      order_sl,
                      order_tp,
                      float(DEFAULT_NUMBER),
@@ -722,13 +750,6 @@ class HappyForexEA(object):
             return
         
         # calculate all variables for placing an order
-        TimeCurrent = convert_string_datetime2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
-        expire = TimeCurrent + MINUTES_OF_ANHOUR * DEFAULT_NUMBER
-        
-        # assign expire equals 0 for good
-        if (0 == 0):
-            expire = 0
-         
         price = (self.NormalizeDouble_9(self.ask_price, self.NDigits) 
                  + (self.ARRANGEMENTS_OF_TRADES * self.PipValue) * self.my_point)
         
@@ -740,18 +761,18 @@ class HappyForexEA(object):
         TP = price + (self.SINGLEORDERTP * self.PipValue * self.my_point)
         if (self.SINGLEORDERTP == float(DEFAULT_NUMBER)):
             TP = float(DEFAULT_NUMBER)
-        
            
         # place the pending order OP_BUYLIMIT
         order_id = self.CreateUniqueOrderID_9(OP_BUYLIMIT)
-        ticket = self.OrderSend_9(order_id, OP_BUYLIMIT, self.Lots, price, self.SLIPPAGE, SL, TP, expire)
+        ticket = self.OrderSend_9(order_id, OP_BUYLIMIT, self.Lots, price, self.SLIPPAGE, SL, TP)
         
         # inform the result after placing the pending order OP_BUYLIMIT
         if (ticket == False):
-            # print("OrderSend_9() error for OP_BUYLIMIT %s" % order_id)
+#             print("OrderSend_9() error for OP_BUYLIMIT %s" % order_id)
             log.info("OrderSend_9() error for OP_BUYLIMIT %s" % order_id)
-#         else:
+        else:
 #             print("Successfully placed the Pending order OP_BUYLIMIT %s." % order_id)
+            log.info("Successfully placed the Pending order OP_BUYLIMIT %s." % order_id)
             
     #===============================================================================
     def SellPendingOrder14_8(self):
@@ -762,13 +783,6 @@ class HappyForexEA(object):
             return
         
         # calculate all variables for placing an order
-        TimeCurrent = convert_string_datetime2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
-        expire = TimeCurrent + MINUTES_OF_ANHOUR * DEFAULT_NUMBER
-        
-        # assign expire equals 0 for good
-        if (0 == 0):
-            expire = 0
-        
         price = (self.NormalizeDouble_9(self.ask_price, self.NDigits) 
                  - (self.ARRANGEMENTS_OF_TRADES * self.PipValue) * self.my_point)
         
@@ -783,22 +797,23 @@ class HappyForexEA(object):
         
         # place the pending order OP_SELLLIMIT
         order_id = self.CreateUniqueOrderID_9(OP_SELLLIMIT)
-        ticket = self.OrderSend_9(order_id, OP_SELLLIMIT, self.Lots, price, self.SLIPPAGE, SL, TP, expire)
+        ticket = self.OrderSend_9(order_id, OP_SELLLIMIT, self.Lots, price, self.SLIPPAGE, SL, TP)
         
         # inform the result after placing the pending order OP_SELLLIMIT
         if (ticket == False):
-            # print("OrderSend_9() error for OP_SELLLIMIT %s" % order_id)
+#             print("OrderSend_9() error for OP_SELLLIMIT %s" % order_id)
             log.info("OrderSend_9() error for OP_SELLLIMIT %s" % order_id)
-#         else:
+        else:
 #             print("Successfully placed the Pending order OP_SELLLIMIT %s." % order_id)
-        
+            log.info("Successfully placed the Pending order OP_SELLLIMIT %s." % order_id)
+            
     #===============================================================================
     def IfSellOrderDoesNotExist4_7(self, Mode):
         ''' Check whether the order OP_SELL existed in the Opened and Pending order pool. '''
         exists = False
         
         # get all Opened and Pending orders in the pool
-        # ORDER_OPENED_DICT = {order_id: ['Date', 'Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']}
+        # ORDER_OPENED_DICT = {order_id: ['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']}
         for order_id in self.ORDER_OPENED_DICT.keys():
             
             # when the order is OP_SELL
@@ -820,7 +835,7 @@ class HappyForexEA(object):
         exists = False
         
         # get all Opened and Pending orders in the pool
-        # ORDER_OPENED_DICT = {order_id: ['Date', 'Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']}
+        # ORDER_OPENED_DICT = {order_id: ['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']}
         for order_id in self.ORDER_OPENED_DICT.keys():
             
             # when the order is OP_BUY
@@ -842,7 +857,7 @@ class HappyForexEA(object):
         exists = False
         
         # get all Opened and Pending orders in the pool
-        # ORDER_OPENED_DICT = {order_id: ['Date', 'Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']}
+        # ORDER_OPENED_DICT = {order_id: ['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']}
         for order_id in self.ORDER_OPENED_DICT.keys():
             
             # when the order is OP_BUYLIMIT
@@ -864,7 +879,7 @@ class HappyForexEA(object):
         exists = False
         
         # get all Opened and Pending orders in the pool
-        # ORDER_OPENED_DICT = {order_id: ['Date', 'Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']}
+        # ORDER_OPENED_DICT = {order_id: ['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']}
         for order_id in self.ORDER_OPENED_DICT.keys():
             
             # when the order is OP_SELLLIMIT
@@ -879,7 +894,6 @@ class HappyForexEA(object):
         
         if (exists == True):
             self.IfBuyOrderDoesNotExist6_7(2);
-        
         
     #===============================================================================
     def ATRFilter_5(self):
@@ -907,17 +921,15 @@ class HappyForexEA(object):
             ATR = "Not ATR filtering!"
             self.IfOrderDoesNotExist11_6()
             self.IfOrderDoesNotExist12_6()
-
-        # TODO: For testing only 
+        
+        # TODO: TESTING only --> START here: 2 functions lead to placing Pending orders 
         elif (ATRPrePips1 == float(DEFAULT_NUMBER) and ATRPrePips2 == float(DEFAULT_NUMBER)):
             ATR = "Not ATR filtering!"
             self.IfOrderDoesNotExist11_6()
             self.IfOrderDoesNotExist12_6()
-        
+        # TESTING only --> END here
         else:
             ATR = "ATR Filtering!"
-            # print(ATR)
-            log.info(ATR)
             if((self.DeletePOATR == True) and (self.FILTERING == True)):
                 self.DeletePendingOrder18_3()
                 self.DeletePendingOrder19_3()
@@ -925,9 +937,8 @@ class HappyForexEA(object):
             if((self.DeleteOrderATR == True) and (self.FILTERING == True)):
                 self.CloseOrder16_3()
                 self.CloseOrder17_3()
-        
             
-        if (self.FILTERING == False):
+        if (self.FILTERING == False):  
             ATR = ""
             self.IfOrderDoesNotExist11_6()
             self.IfOrderDoesNotExist12_6()
@@ -939,17 +950,18 @@ class HappyForexEA(object):
         count = DEFAULT_NUMBER
         
         # get all Opened and Pending orders in the pool
-        # ORDER_OPENED_DICT = {order_id: ['Date', 'Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']}
+        # ORDER_OPENED_DICT = {order_id: ['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']}
         
-        # TODO: this one for testing only
-        if (len(self.ORDER_OPENED_DICT) == DEFAULT_NUMBER):
+        # TODO: function leads to place Pending orders
+        if (len(self.ORDER_OPENED_DICT) == DEFAULT_NUMBER or self.OPENORDERSLIMIT == DEFAULT_NUMBER):
             self.ATRFilter_5()
         else:
             for i in self.ORDER_OPENED_DICT.keys():
                 count += DEFAULT_SECOND_NUMBER
                 
+                # TODO: function leads to place Pending orders
                 if (count < self.OPENORDERSLIMIT) or (self.OPENORDERSLIMIT == DEFAULT_NUMBER):
-                    self.ATRFilter_5()
+                    self.ATRFilter_5()  
                            
                 if (self.SellOrderExists == False) and (self.BuyOrderExists == False):
                     count = DEFAULT_NUMBER
@@ -958,23 +970,6 @@ class HappyForexEA(object):
                     count = count - DEFAULT_SECOND_NUMBER
                     self.OrderCounter = count
                 
-            ''' 
-            # SKIP from original EA
-            if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
-            {
-                if (OrderSymbol() == Symbol())
-                if (OrderMagicNumber() == Magic)
-                {
-                    count++;
-                }
-            }
-            else
-            {
-                Print("OrderSend_9() error - ", ErrorDescription(GetLastError()));
-            }
-            '''
-            
-                
     #===============================================================================
     def CheckLastOrderType35_4(self):
         ''' Check the last order and delete the pending OP_BUYLIMIT order when the last order was OP_BUY. '''
@@ -982,21 +977,16 @@ class HappyForexEA(object):
         orderType = -1.00
         lastCloseTime = float(DEFAULT_NUMBER)
 
-        ''' int cnt = OrdersHistoryTotal();  # SKIP from origin EA '''
-        
-        # get all Closed and Deleted orders in the pool
-        # ORDER_CLOSED_DICT = {order_id: ['Date', 'Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']}
+        # get all Closed orders in the pool
+        # ORDER_CLOSED_DICT = {order_id: ['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']}
         for order_id in self.ORDER_CLOSED_DICT.keys():
-            '''  if (!OrderSelect(i, SELECT_BY_POS, MODE_HISTORY)) continue;  # SKIP from origin EA '''
+            
             closed_order = self.ORDER_CLOSED_DICT[order_id]
             OrderCloseTime = closed_order[DATETIME_COL_INDEX]
             
-#             order_time = str(closed_order[DATETIME_COL_INDEX] + "_" + closed_order[TIME_COL_INDEX])
-#             OrderCloseTime = convert_string_datetime2float(order_time, MARKET_TIME_STANDARD, DATETIME_FORMAT)
-            
             if (lastCloseTime < OrderCloseTime):
                 lastCloseTime = OrderCloseTime
-                orderType = self.OrderType_5(order_id, self.ORDER_CLOSED_DICT)
+                orderType = closed_order[ORDER_TYPE_COL_INDEX]
         
         # delete the opened OP_BUYLIMIT orders when the last order was OP_BUY
         if (orderType == OP_BUY or self.FirstTime35):
@@ -1013,31 +1003,26 @@ class HappyForexEA(object):
         # set default values
         minutesSincePrevEvent = minutesUntilNextEvent = impactOfNextEvent = DEFAULT_NUMBER
         
-        ''' && !IsTesting()  # SKIP from original EA'''
         if (self.TimeMinute_3() != PrevMinute):     
             
             PrevMinute = self.TimeMinute_3()
             
-#             # iCustom() : Calculates the specified custom indicator and returns its value.
-#             # TODO: WORK OUT THE FUNCTION iCustom() for FFCal indicator in Python
+#             # TODO: WORK OUT iCustom (Calculates the specified custom indicator and returns its value) for FFCal indicator
 #             minutesSincePrevEvent = iCustom(NULL, 0, "FFCal", True, True, False, True, True, 1, 0)
 #             minutesUntilNextEvent = iCustom(NULL, 0, "FFCal", True, True, False, True, True, 1, 1)
             
             if ((minutesUntilNextEvent <= self.MINSBEFORENEWS) or (minutesSincePrevEvent <= self.MINSAFTERNEWS)):
-#                 # TODO: WORK OUT THE FUNCTION iCustom() for FFCal indicator in Python
+#                 # TODO: WORK OUT iCustom() for FFCal indicator
 #                 impactOfNextEvent = iCustom(NULL, 0, "FFCal", True, True, False, True, True, 2, 1)
                 
                 if (impactOfNextEvent >= self.NEWSIMPACT): 
                     News = True
         
         return News
-        
+
     #===============================================================================
     def HoursFilter22_3(self):
         ''' HoursFilter22_3. '''
-    
-        ''' int datetime800 = TimeLocal();    # SKIP from origin EA '''
-    
     
         # get the Hour of local time/system time
         hour0 = self.TimeHour_4()
@@ -1085,12 +1070,10 @@ class HappyForexEA(object):
                 self.CheckLastOrderType33_4()
                 self.LimitOpenOrders28_4()
                 self.CheckLastOrderType35_4()
-        
     
     #===============================================================================
     def WeekdayFilter23_2(self):
         ''' WeekdayFilter23_2  '''
-    
             
         # (0 - Monday, 1, 2, 3, 4, 5, 6)
         if ((self.MONDAY and self.DayOfWeek_3() == 0) 
@@ -1118,15 +1101,16 @@ class HappyForexEA(object):
         ''' Close OP_BUY and delete OP_BUYLIMIT in Opened and Pending order pool. '''
     
         # get all Opened and Pending orders in the pool
-        # ORDER_OPENED_DICT = {order_id: ['Date', 'Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']}
+        # ORDER_OPENED_DICT = {order_id: ['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']}
         for order_id in self.ORDER_OPENED_DICT.keys():
-            ''' replace for: res = OrderClose_4(OrderTicket(), OrderLots(), OrderClosePrice(), Slippage, Blue);'''
-            # when the order is OP_BUY
-            order_type = self.OrderType_5(order_id, self.ORDER_OPENED_DICT)
+            order = self.ORDER_OPENED_DICT[order_id]
+            order_type = order[ORDER_TYPE_COL_INDEX]
+            
+            # close orders when they are OP_BUY orders
             if  (order_type == OP_BUY):
                 # --> Close a specific old_opended_order in data by deleting this OP_BUY in the Opened and Pending orders pool 
                 # and return new value of order from Opened position to Close position
-                self.OrderClose_4(order_id, order_type)
+                self.OrderClose_4(order, order_id, order_type)
         
         self.DeletePendingOrder18_3()         
         
@@ -1135,47 +1119,44 @@ class HappyForexEA(object):
         ''' Close OP_SELL and delete OP_SELLLIMIT in Opened and Pending order pool. '''
     
         # get all Opened and Pending orders in the pool
-        # ORDER_OPENED_DICT = {order_id: ['Date', 'Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']}
+        # ORDER_OPENED_DICT = {order_id: ['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']}
         for order_id in self.ORDER_OPENED_DICT.keys():
-            ''' replace for: res = OrderClose_4(OrderTicket(), OrderLots(), OrderClosePrice(), Slippage, Blue);'''
-            # when the order is OP_SELL
-            order_type = self.OrderType_5(order_id, self.ORDER_OPENED_DICT)
+            
+            order = self.ORDER_OPENED_DICT[order_id]
+            order_type = order[ORDER_TYPE_COL_INDEX]
+            
+            # close orders when they are OP_SELL orders
             if  (order_type == OP_SELL):
                 # --> Close a specific old_opended_order in data by deleting this OP_SELL in the Opened and Pending orders pool 
                 # and return new value of order from Opened position to Close position
-                self.OrderClose_4(order_id, order_type)
+                self.OrderClose_4(order, order_id, order_type)
                 
         self.DeletePendingOrder19_3()   
         
     #===============================================================================
     def CloseOrderIf21_2(self):
-        ''' Close OP_SELL and delete OP_SELLLIMIT in Opened and Pending order pool. '''
+        ''' Close all orders in Opened orders pool when satisfied conditions. '''
         
         dblProfit = float(DEFAULT_NUMBER)
     
         # get all Opened and Pending orders in the pool
-        # ORDER_OPENED_DICT = {order_id: ['Date', 'Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']}
+        # ORDER_OPENED_DICT = {order_id: ['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']}
         for order_id in self.ORDER_OPENED_DICT.keys():
             order = self.ORDER_OPENED_DICT[order_id]
             OrderProfit = float(order[PROFIT_COL_INDEX])
             dblProfit += OrderProfit
-        
         
         if  ((self.PROFIT and dblProfit >= self.PROFIT_ALL_ORDERS) 
              or (dblProfit <= self.AMOUNT_OF_LOSS and self.SET_UP_OF_LOSS == True) 
              or self.CLOSING_OF_ALL_TRADES == True):
         
             for order_id in self.ORDER_OPENED_DICT.keys():
-                ''' RefreshRates(); # SKIP from origin EA '''
-                self.CloseOrder16_3
-                self.CloseOrder17_3
-                ''' Sleep(100);  # SKIP from origin EA '''
+                self.CloseOrder16_3()
+                self.CloseOrder17_3()
         
     #===============================================================================
     def AtCertainTime6_2(self):
         ''' Return  '''
-    
-        ''' int datetime800 = TimeLocal();    # SKIP from origin EA '''
     
         # get the Hour of local time/system time
         hour0 = self.TimeHour_4()
@@ -1185,7 +1166,6 @@ class HappyForexEA(object):
             and (self.Time_closing_trades == True) 
             and  self.ProfitCheck_3() > float(DEFAULT_NUMBER)):
 
-            ''' clear = true;    # SKIP from origin EA '''
             self.Today6 = self.DayOfWeek_3();
             self.CloseOrder17_3();
             self.CloseOrder16_3();
@@ -1196,10 +1176,12 @@ class HappyForexEA(object):
         
         self.WeekdayFilter23_2()
         self.AtCertainTime6_2()
-        ''' PrintInfoToChart32() # SKIP from origin EA '''
-        self.CloseOrderIf21_2()
-
         
+        # TODO: Extra Functions for having Open/Market orders: 
+        self.UpdateProfit_2()
+        self.ModifyPendingOrder_2()
+        
+        self.CloseOrderIf21_2()
                 
     #===============================================================================
     def CloseDeleteAll_1(self):
@@ -1208,10 +1190,11 @@ class HappyForexEA(object):
         flag_close_delete_all = True
         
         # get all Opened and Pending orders in the pool
-        # ORDER_OPENED_DICT = {order_id: ['Date', 'Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']}
+        # ORDER_OPENED_DICT = {order_id: ['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']}
         for order_id in self.ORDER_OPENED_DICT.keys():
             
-            order_type = self.OrderType_5(order_id, self.ORDER_OPENED_DICT)
+            order = self.ORDER_OPENED_DICT[order_id]
+            order_type = order[ORDER_TYPE_COL_INDEX]
             
             # when the order is OP_BUY or OP_SELL
             if  (order_type == OP_BUY or order_type == OP_SELL):
@@ -1226,32 +1209,35 @@ class HappyForexEA(object):
             if  (order_type == OP_BUYLIMIT or order_type == OP_SELLLIMIT):
                 
                 # --> delete this OP_BUYLIMIT or OP_SELLLIMIT oder in the Opened and Pending orders pool
-                order = self.ORDER_OPENED_DICT[order_id]
                 flag_close_delete_all = self.OrderDelete_4(order_id, self.ORDER_OPENED_DICT)
                
-                # --> update date time and save this deleted OP_BUYLIMIT or OP_SELLLIMIT oder in the Closed and Deleted orders pool
-                order[DATETIME_COL_INDEX] = convert_string_datetime2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
-                flag_close_delete_all = self.OrderAdd_10(order_id, order, self.ORDER_CLOSED_DICT)
-        
-                if (flag_close_delete_all == False):
-                    return flag_close_delete_all
-        
+                if (flag_close_delete_all):
+                    # --> update date time and save this deleted OP_BUYLIMIT or OP_SELLLIMIT oder in the Deleted orders pool
+                    order[DATETIME_COL_INDEX] = self.current_datetime
+                    order[DAY_COL_INDEX] = self.current_day
+                    order[TIME_COL_INDEX] = self.current_time
+                    flag_close_delete_all = self.OrderAdd_10(order_id, order, self.ORDER_DELETED_DICT)
+            
+                    if (flag_close_delete_all == False):
+                        return flag_close_delete_all
+            
         return flag_close_delete_all
             
     #===============================================================================
-    def UpdateProfit_1(self):
+    def UpdateProfit_2(self):
         ''' Update Profit for each Open orders in Opened and Pending orders pool.'''
         
         # get all Opened and Pending orders in the pool
-        # ORDER_OPENED_DICT = {order_id: ['Date', 'Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']}
+        # ORDER_OPENED_DICT = {order_id: ['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']}
         for order_id in self.ORDER_OPENED_DICT.keys():
             
-            # when the order is OP_BUY or OP_SELL update Profit for each Open orders
-            order_type = self.OrderType_5(order_id, self.ORDER_OPENED_DICT)
+            new_order = self.ORDER_OPENED_DICT[order_id]
+            order_type = new_order[ORDER_TYPE_COL_INDEX]
+            
+            # update Profit for each Open orders when they are OP_BUY or OP_SELL orders 
             if  (order_type == OP_BUY or order_type == OP_SELL):
                 
-                new_closed_order = self.ORDER_OPENED_DICT[order_id]
-                entry_price = new_closed_order[PRICE_COL_INDEX]
+                entry_price = new_order[PRICE_ENTRY_COL_INDEX]
                 exit_price = float(DEFAULT_NUMBER)
                 
                 # delete this order in the Opened and Pending orders pool
@@ -1260,7 +1246,7 @@ class HappyForexEA(object):
                 if (flag_deleted):
                     '''When you go long, you enter the market at the ASK price and exit the market at BID price.
                     When you go short, you enter the market at the BID price and exit at the ASK price.'''
-                    # ORDER_OPENED_DICT[] = ['Date', 'Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']
+                    # ORDER_OPENED_DICT[] = ['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']
                     # update the new values for this order 
                     
                     if  (order_type == OP_BUY):
@@ -1269,15 +1255,18 @@ class HappyForexEA(object):
                     elif  (order_type == OP_SELL):
                         exit_price = self.ask_price
                     
-                    lots = new_closed_order[LOTS_COL_INDEX]
+                    lots = new_order[LOTS_COL_INDEX]
                     profit = self.CalculateProfit_5(entry_price, exit_price, lots, order_type)
                     
-                    new_closed_order[DATETIME_COL_INDEX] = convert_string_datetime2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
-                    new_closed_order[PROFIT_COL_INDEX] = profit
-                    new_closed_order[PRICE_COL_INDEX] = exit_price
+                    new_order[DATETIME_COL_INDEX] = self.current_datetime
+                    new_order[DAY_COL_INDEX] = self.current_day
+                    new_order[TIME_COL_INDEX] = self.current_time
+                    new_order[PROFIT_COL_INDEX] = profit
+                    new_order[PRICE_ENTRY_COL_INDEX] = entry_price
+                    new_order[PRICE_EXIT_COL_INDEX] = exit_price
                             
                     # save back this deleted order in the Opened and Pending orders pool with updated values
-                    self.OrderAdd_10(order_id, new_closed_order, self.ORDER_OPENED_DICT)
+                    self.OrderAdd_10(order_id, new_order, self.ORDER_OPENED_DICT)
         
         # update total profit
         self.CurrentProfit = self.ProfitCheck_3()
@@ -1285,12 +1274,12 @@ class HappyForexEA(object):
     #===============================================================================
     def CheckEnoughMoney_2(self, order):
         ''' Check if there are enough money in the account for open an order by calculating Equity. '''
-    
+        
         # EQUITY = BALANCE + PROFIT
         equity = self.balance + self.CurrentProfit
             
         # MARGIN = ENTRY PRICE * SIZE /LEVERAGE 
-        margin = order[PRICE_COL_INDEX] * order[LOTS_COL_INDEX] * ONE_LOT_VALUE / LEVERAGE
+        margin = order[PRICE_ENTRY_COL_INDEX] * order[LOTS_COL_INDEX] * ONE_LOT_VALUE / LEVERAGE
         
         # FREE MARGIN = EQUITY - MARGIN
         free_magin = equity - margin
@@ -1303,64 +1292,60 @@ class HappyForexEA(object):
             return False
         
     #===============================================================================
-    def ModifyPendingOrder_1(self):
-        ''' If there are enough money on the account for opening a pending order, it will be modified into a market one 
-        (opened). If not, it will be deleted. '''
-        
-        flag_added = False
+    def ModifyPendingOrder_2(self):
+        ''' If there are enough money in the account for opening a pending order, this pending order will 
+        be modified into a market one (opened). '''
         
         if (self.ords_in_a_day >= self.OPENORDERSLIMITDAY):
-            pass
-#             print("Cannot modify this Pending order due to reaching maximum %s orders per day %s." % (OPENORDERSLIMITDAY, self.current_datetime))
+#             pass
+#             print("Cannot modify this Pending order due to reaching maximum %s orders per day." % self.OPENORDERSLIMITDAY)
+            log.info("Cannot modify this Pending order due to reaching maximum %s orders per day." % self.OPENORDERSLIMITDAY)
         else:
             # get all Opened and Pending orders in the pool
-            # ORDER_OPENED_DICT = {order_id: ['Date', 'Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']}
+            # ORDER_OPENED_DICT = {order_id: ['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']}
             for order_id in self.ORDER_OPENED_DICT.keys():
-                
-                order_type = self.OrderType_5(order_id, self.ORDER_OPENED_DICT)
-               
-                # when this order is OP_BUYLIMIT or OP_BUYLIMIT, check if it can be modified to be Open order or not
+                order = self.ORDER_OPENED_DICT[order_id]
+                order_type = order[ORDER_TYPE_COL_INDEX]
+                    
+                # check if it can be modified to become an Open order or not when this order is OP_BUYLIMIT or OP_BUYLIMIT 
                 if  (order_type == OP_BUYLIMIT or order_type == OP_SELLLIMIT):
                     
-                    order = self.ORDER_OPENED_DICT[order_id]
-                    entry_price = order[PRICE_COL_INDEX]
+                    entry_price = order[PRICE_ENTRY_COL_INDEX]
                     exit_price = float(DEFAULT_NUMBER)
                     flag_modified = False
+                    message = ""
                     
                     if (order_type == OP_BUYLIMIT):
                         exit_price = self.bid_price
+                        message = "Modified the Pending order OP_BUYLIMIT " + str(order_id) + " to Open order OP_BUY."
                         
                         if (entry_price <= exit_price):
                             flag_modified = True
                         else:
-                            # print("Cannot modify order OP_BUYLIMIT %s." % order_id)
-                            log.info("Cannot modify order OP_BUYLIMIT %s." % order_id)
+                            flag_modified = False
+#                             print("Cannot modify order OP_BUYLIMIT %s due to entry_price <= exit_price." % order_id)
+                            log.info("Cannot modify order OP_BUYLIMIT %s due to entry_price <= exit_price." % order_id)
                             
                     elif (order_type == OP_SELLLIMIT):
                         exit_price = self.ask_price
+                        message = "Modified the Pending order OP_SELLLIMIT " + str(order_id) + " to Open order OP_SELL."
                         
                         if (entry_price >= exit_price):
                             flag_modified = True
                         else:
-                            # print("Cannot modify order OP_SELLLIMIT %s." % order_id)
-                            log.info("Cannot modify order OP_SELLLIMIT %s." % order_id)
+                            flag_modified = False
+#                             print("Cannot modify order OP_SELLLIMIT %s due to entry_price >= exit_price." % order_id)
+                            log.info("Cannot modify order OP_SELLLIMIT %s due to entry_price >= exit_price." % order_id)
                             
-                    # this Pending order can be modified
+                    # when this Pending order can be modified
                     if (flag_modified):
-                      
-                        # check if there is not enough money to open a new order or not
-                        flag_enough_money = self.CheckEnoughMoney_2(order)
-                        
                         # modified this Pending order to become Open order when having enough money
-                        if (flag_enough_money):  
-                            
+                        if (self.CheckEnoughMoney_2(order)):  
                             # delete this order in the Opened and Pending orders pool
-                            flag_deleted = self.OrderDelete_4(order_id, self.ORDER_OPENED_DICT)
-                           
-                            if (flag_deleted):
+                            if (self.OrderDelete_4(order_id, self.ORDER_OPENED_DICT)):
                                 '''When you go long, you enter the market at the ASK price and exit the market at BID price.
                                 When you go short, you enter the market at the BID price and exit at the ASK price.'''
-                                # ORDER_OPENED_DICT[] = ['Date', 'Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']
+                                # ORDER_OPENED_DICT[] = ['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']
                                 
                                 # update the new type for this Pending order 
                                 new_order_type = order_type
@@ -1374,28 +1359,25 @@ class HappyForexEA(object):
                                 lots = order[LOTS_COL_INDEX]
                                 profit = self.CalculateProfit_5(entry_price, exit_price, lots, new_order_type)
                                 
-                                order[DATETIME_COL_INDEX] = convert_string_datetime2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
+                                order[DATETIME_COL_INDEX] = self.current_datetime
+                                order[DAY_COL_INDEX] = self.current_day
+                                order[TIME_COL_INDEX] = self.current_time
                                 order[ORDER_TYPE_COL_INDEX] = new_order_type
-                                order[PRICE_COL_INDEX] = exit_price
+                                order[PRICE_ENTRY_COL_INDEX] = entry_price
+                                order[PRICE_EXIT_COL_INDEX] = exit_price
                                 order[PROFIT_COL_INDEX] = profit
                                         
                                 # save back this deleted order in the Opened and Pending orders pool with updated values
-                                flag_added = self.OrderAdd_10(order_id, order, self.ORDER_OPENED_DICT)
-                                
-                                # update the numbers of Open orders per day
-                                if (flag_added):
+                                # and update the numbers of Open orders per day
+                                if (self.OrderAdd_10(order_id, order, self.ORDER_OPENED_DICT)):
                                     self.ords_in_a_day += DEFAULT_SECOND_NUMBER
-                                    if (new_order_type == OP_BUY):
-                                        # print("Modified the Pending order OP_BUYLIMIT %s to Open order OP_BUY." % order_id)
-                                        log.info("Modified the Pending order OP_BUYLIMIT %s to Open order OP_BUY." % order_id)
-                                        
-                                    elif (new_order_type == OP_SELL):
-                                        # print("Modified the Pending order OP_SELLLIMIT %s to Open order OP_SELL." % order_id)
-                                        log.info("Modified the Pending order OP_SELLLIMIT %s to Open order OP_SELL." % order_id)
-                                        
-            
+#                                     print(message)
+                                    log.info(message)
+                        else:
+#                             print("There are NOT enough money to modify this Pending order %s to Open order." % order_id)
+                            log.info("There are NOT enough money to modify this Pending order %s to Open order." % order_id)
     #===============================================================================
-    def initilize(self, PARAMETERS_COMPLETED):
+    def initilize(self, PARAMETERS_COMPLETED, DIGITS, POINT):
     
         # get the total parameters for running EA
         name_ea_row_index = 0
@@ -1564,19 +1546,11 @@ class HappyForexEA(object):
         self.Time_closing_trades = self.TIME_CLOSING_TRADES
         self.Lots = self.LOTS
         self.Slippage = self.SLIPPAGE
-        
-    
-    #===============================================================================
-    def run(self, PARAMETERS_COMPLETED):
-        ''' EA running '''
-        
-#         ObjectsDeleteAll();   //SKIP from original EA
-#         Comment("");          //SKIP from original EA
-        
-        self.initilize(PARAMETERS_COMPLETED)
+        self.NDigits = DIGITS
+        self.my_point = POINT
         
         # Adjust for 4/5 digit brokers
-        if BrokerIs5Digit_0(): 
+        if self.BrokerIs5Digit_0(): 
             self.PipValue = float(10)
             self.my_point *= float(10)
             self.SpreadMax *= float(10)
@@ -1599,97 +1573,145 @@ class HappyForexEA(object):
             self.Time_of_closing_in_hours -= HOURS_OF_ADAY
         if(self.Time_of_closing_in_hours < DEFAULT_NUMBER):
             self.Time_of_closing_in_hours += HOURS_OF_ADAY
+
+    #===============================================================================
+    def run(self, PARAMETERS_COMPLETED):
+        ''' EA running '''
         
-        # save the first day 
-        first_day = TICK_DATA[DEFAULT_NUMBER][DATETIME_COL_INDEX]
-        fprevious_day = convert_string_day2float(first_day, MARKET_TIME_STANDARD, DATETIME_FORMAT)
-        self.DATE_DATA_DICT[fprevious_day] = TICK_DATA[DEFAULT_NUMBER][DATETIME_COL_INDEX]
+#         ObjectsDeleteAll();   //SKIP from original EA
+#         Comment("");          //SKIP from original EA
         
-        for row_index in range(len(TICK_DATA)):
-            if (row_index == DEFAULT_NUMBER):
-                print("... ==> start processing the data...")
-            elif (row_index == 1000 or row_index % 10000 == DEFAULT_NUMBER):
-                perc = round((float(row_index) / float(len(TICK_DATA))) * float(100), 2)
-                print("... ==> processing {0}% of the data...".format(str(perc)))
+        display_an_array_with_delimiter(PARAMETERS_COMPLETED, '=')
+        log.info('#===============================================================================')
+        print('#===============================================================================')
+        
+        # Access the input folder to get the Tick Data
+        folder_name = convert_backflash2forwardflash(FOLDER_DATA_INPUT + SYMBOL + FOLDER_TICK_DATA_MODIFIED)
+        allFiles = glob.glob(folder_name + '/*.csv')
+        
+        # Running EA process
+        file_index = DEFAULT_SECOND_NUMBER
+        for file_ in allFiles:
             
-            self.current_datetime = TICK_DATA[row_index][DATETIME_COL_INDEX]
-            self.bid_price = float(TICK_DATA[row_index][BID_COL_INDEX])
-            self.ask_price = float(TICK_DATA[row_index][ASK_COL_INDEX])
-            self.mode_spread = self.MODE_SPREAD_1(row_index)
+            log.info("==> Loading TICK DATA from file {0}/out of {1} files...".format(file_index, len(allFiles)))
+            time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+            print("{0} ==> Loading TICK DATA from file {1}/out of {2} files...".format(time_stamp, file_index, len(allFiles)))
             
-            fcurrent_day = convert_string_day2float(self.current_datetime, MARKET_TIME_STANDARD, DATETIME_FORMAT)
+            file_name = convert_backflash2forwardflash(file_)
+             
+            # Create TICK_DATA from the Modified CSV file
+            TICK_DATA = load_csv2array(file_name)
+            display_an_array_with_delimiter(TICK_DATA, '    ')
             
-            # save the previous date when going to a new date 
-            if (fprevious_day != fcurrent_day):
-                
-                # save the old date
-                fprevious_day = fcurrent_day
-                self.DATE_DATA_DICT[fcurrent_day] = self.current_datetime
-                
-                # reset the Maximum open orders per day
-                self.ords_in_a_day = DEFAULT_NUMBER
-                
-                # update the output data
-                write_dict2csv_no_header(self.DATE_DATA_DICT, FOLDER_DATA_OUTPUT + FILENAME_DATE_DICT)
-                
-                print("==> checking date %s" % self.current_datetime)
+            DIGITS = digit_of_symbol(float(TICK_DATA[DEFAULT_NUMBER][BID_COL_INDEX]))
+            POINT = point_of_symbol(float(TICK_DATA[DEFAULT_NUMBER][BID_COL_INDEX]))
+            
+            # set up all the total parameters for running EA
+            self.reset()
+            self.initilize(PARAMETERS_COMPLETED, DIGITS, POINT)
+            
+            # save the first day 
+            fprevious_day = float(TICK_DATA[DEFAULT_NUMBER][DAY_COL_INDEX])
+            
+            # access each tick for running EA
+            for row_index in range(len(TICK_DATA)):
                 print("==> row_index: %s" % row_index)
-                log.info("==> checking date %s" % self.current_datetime)
-                log.info("==> row_index: %s" % row_index)
-                                                                
-            # check if reaching maximum orders and delete the pending orders            
-            self.MaxOrders_9(self.OPENORDERSLIMITDAY)
-            
-    
-            if (self.clear):                       
-                if (self.CloseDeleteAll_1()):
-                    self.clear = False
+                
+                if (row_index == DEFAULT_NUMBER):
+                    log.info("... ==> start processing the data...")
+                    time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+                    print("%s... ==> start processing the data..." % time_stamp)
+                
+                elif (row_index == 10 or row_index == 100 or row_index == 200 or row_index == 400 or row_index == 600 or row_index == 800   
+                      or row_index % 1000 == DEFAULT_NUMBER):
+                    
+                    perc = round((float(row_index) / float(len(TICK_DATA))) * float(100), 2)
+                    
+                    log.info("... ==> processing {0}% of the data, date {1}...".format(perc, self.current_datetime))
+                    time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+                    print("{0}... ==> processing {1}% of the data...".format(time_stamp, perc, self.current_datetime))
+                    
+                    # Write out other data for reference
+                    write_dict2csv_no_header(self.ORDER_CLOSED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_CLOSED_HISTORY)
+                    write_dict2csv_no_header(self.ORDER_OPENED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_OPENED_HISTORY)
+                    write_dict2csv_no_header(self.ORDER_DELETED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_DELETED_HISTORY)
+
+                
+                self.current_datetime = float(TICK_DATA[row_index][DATETIME_COL_INDEX])
+                self.current_day = float(TICK_DATA[row_index][DAY_COL_INDEX])
+                self.current_time = float(TICK_DATA[row_index][TIME_COL_INDEX])
+                self.bid_price = float(TICK_DATA[row_index][BID_COL_INDEX])
+                self.ask_price = float(TICK_DATA[row_index][ASK_COL_INDEX])
+                self.mode_spread = self.MODE_SPREAD_1(self.bid_price, self.ask_price)
+                
+                # save the previous date when going to a new date 
+                if (fprevious_day != self.current_day):
+                    log.info("==> checking date %s" % self.current_datetime)
+                    log.info("==> row_index: %s" % row_index)
+                    time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+                    print("%s ==> checking date %s" % (time_stamp, self.current_datetime))
+                    print("%s ==> row_index: %s" % (time_stamp, row_index))
+                    
+                    # save the old date
+                    fprevious_day = self.current_day
+                    
+                    # reset the Maximum Open orders per day
+                    self.ords_in_a_day = DEFAULT_NUMBER
+                    
+                    # Write out other data for reference
+                    write_dict2csv_no_header(self.ORDER_CLOSED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_CLOSED_HISTORY)
+                    write_dict2csv_no_header(self.ORDER_OPENED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_OPENED_HISTORY)
+                    write_dict2csv_no_header(self.ORDER_DELETED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_DELETED_HISTORY)
+
+                    
+                # check if reaching maximum orders and delete the pending orders            
+                if (self.MaxOrders_9(self.OPENORDERSLIMITDAY)):
+                    continue
                 else:
-                    return
+                    if (self.clear):                       
+                        if (self.CloseDeleteAll_1()):
+                            self.clear = False
+                        else:
+                            return
+                                
+                    # check total profit at the moment
+                    self.CurrentProfit = self.ProfitCheck_3()
+                    
+                    # check total balance at the moment
+                    self.balance = self.AccountBalance_1()  # uzavrete obchody
                         
-            # check total profit at the moment
-            self.CurrentProfit = self.ProfitCheck_3()
-            
-            # check total balance at the moment
-            self.balance = self.AccountBalance_1()  # uzavrete obchody
+                    # --> SAFEEQUITYSTOPOUT and AUTOEQUITYMANAGER
+                    if (self.SAFEEQUITYSTOPOUT 
+                        and (self.SAFEEQUITYRISK / float(100)) * self.balance < self.CurrentProfit * float(-1) 
+                        and self.CloseDeleteAll_1() == False):
+                                self.clear = True
+                                return 
+                    
+                    if (self.AUTOEQUITYMANAGER 
+                        and (self.EQUITYGAINPERCENT / float(100)) * self.balance < self.CurrentProfit 
+                        and self.CloseDeleteAll_1() == False):
+                                self.clear = True
+                                return
+                   
+                    # Original Function from original EA
+                    self.OnEveryTick24_1()
                 
+                    # check total profit and balance at the moment again (just in case)
+                    self.CurrentProfit = self.ProfitCheck_3()
+                    self.balance = self.AccountBalance_1()  # uzavrete obchody
                 
-            # --> SAFEEQUITYSTOPOUT and AUTOEQUITYMANAGER
-            if (self.SAFEEQUITYSTOPOUT 
-                and (self.SAFEEQUITYRISK / float(100)) * self.balance < self.CurrentProfit * float(-1) 
-                and self.CloseDeleteAll_1() == False):
-                        self.clear = True
-                        return 
+            log.info("==> Completed loading file %s !!!" % file_index)
+            time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+            print("%s ==> Completed loading file %s !!!" % (time_stamp, file_index))    
             
-            if (self.AUTOEQUITYMANAGER 
-                and (self.EQUITYGAINPERCENT / float(100)) * self.balance < self.CurrentProfit 
-                and self.CloseDeleteAll_1() == False):
-                        self.clear = True
-                        return
-            
-           
-            # TODO: Extra Functions for BackTest: 
-            self.UpdateProfit_1()
-            self.ModifyPendingOrder_1()
-            
-            # Original Function from original EA
-            self.OnEveryTick24_1()
+            # Write out other data for reference
+            write_dict2csv_no_header(self.ORDER_CLOSED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_CLOSED_HISTORY)
+            write_dict2csv_no_header(self.ORDER_OPENED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_OPENED_HISTORY)
+            write_dict2csv_no_header(self.ORDER_DELETED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_DELETED_HISTORY)
+
+            # increase file number counter            
+            file_index += DEFAULT_SECOND_NUMBER
         
-            '''
-            # SKIP from original EA
-            if (Bars < 10)
-            {
-                Comment("Not enough bars");
-                return (0);
-            }
-            '''
-            
-        # check total profit at the moment again (just in case)
-        self.CurrentProfit = self.ProfitCheck_3()
-        
-        print("==> Completed!!!")    
-        log.info("==> Completed!!!")    
-                        
         return (self.CurrentProfit)
 
     #===============================================================================
@@ -1702,13 +1724,36 @@ class HappyForexEA(object):
     
     
 #===============================================================================
-# create an instance EA for running 
-happyforex_EA_instance = HappyForexEA()
+if __name__ == "__main__":
+
+    # If applicable, delete the existing log file to generate a fresh log file during each execution
+    if path.isfile(FOLDER_DATA_OUTPUT + FILENAME_LOG_EA):
+        remove(FOLDER_DATA_OUTPUT + FILENAME_LOG_EA)
+        
+    handler = logging.handlers.WatchedFileHandler(os.environ.get("LOGFILE", FOLDER_DATA_OUTPUT + FILENAME_LOG_EA))
     
-# running EA
-happyforex_EA_instance.run(DEFAULT_PARAMETERS_DATA)
-       
-# Write out other data for reference
-write_array2csv_with_delimiter_no_header(OPTIMIZED_PARAMETERS_DATA, FOLDER_DATA_OUTPUT + FILENAME_OPTIMIZE_PARAMETER, '=')
-write_dict2csv_no_header(happyforex_EA_instance.ORDER_CLOSED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_CLOSED_HISTORY)
-write_dict2csv_no_header(happyforex_EA_instance.ORDER_OPENED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_OPENED_HISTORY)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    
+    root = logging.getLogger()
+    root.setLevel(os.environ.get("LOGLEVEL", "INFO"))
+    root.addHandler(handler)
+    
+    try:
+        # create an instance EA for running 
+        happyforex_EA_instance = HappyForexEA()
+             
+        # running EA
+        cProfile.run('happyforex_EA_instance.run(DEFAULT_PARAMETERS_DATA)', FOLDER_DATA_OUTPUT + FILENAME_PROFILE_EA)
+#         happyforex_EA_instance.run(DEFAULT_PARAMETERS_DATA)
+                
+        # Write out other data for reference
+        write_array2csv_with_delimiter_no_header(OPTIMIZED_PARAMETERS_DATA, FOLDER_DATA_OUTPUT + FILENAME_OPTIMIZE_PARAMETER, '=')
+        write_dict2csv_no_header(happyforex_EA_instance.ORDER_CLOSED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_CLOSED_HISTORY)
+        write_dict2csv_no_header(happyforex_EA_instance.ORDER_OPENED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_OPENED_HISTORY)
+        write_dict2csv_no_header(happyforex_EA_instance.ORDER_DELETED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_DELETED_HISTORY)
+
+    except Exception:
+        logging.exception("Exception in main")
+        exit(1) 
+

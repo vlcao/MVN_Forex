@@ -11,8 +11,8 @@ Friday,false
 Saturday,true
 Sunday,true
 B,Time of trading
-Trading_24h,true
-GMT_Offset,0
+Trading_24h,false
+GMT_Offset,-5
 Hour_of_trading_from,22
 Hour_of_trading_to,5
 Use_OrdersLimit,true
@@ -23,7 +23,7 @@ Time_of_closing_in_hours,6
 Time_of_closing_in_minutes,0
 D,Profit
 Profit,true
-Profit_all_orders,5
+Profit_all_orders,500
 E,OrdersLimit & SL-TP (in pips)
 OpenOrdersLimit,0
 SingleOrderSL,0
@@ -31,7 +31,7 @@ SingleOrderTP,0
 F,Arrangement of trades in points
 Arrangements_of_trades,-25
 G,Scale of lot
-Lots,0.05
+Lots,5
 Slippage,4
 H,Set up of loss scale
 Set_up_of_loss,false

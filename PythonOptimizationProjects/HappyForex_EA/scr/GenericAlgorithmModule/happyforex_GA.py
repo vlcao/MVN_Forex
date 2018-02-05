@@ -8,7 +8,7 @@ Created on Dec 22, 2017
 import logging
 import random
 import sys
-from DataHandler.happyforex_Datahandler import DEFAULT_NUMBER, MAX_LOTS, NET_PROFIT, MAX_FITNESS, \
+from DataHandler.hardcoded_data import DEFAULT_NUMBER, MAX_LOTS, NET_PROFIT, MAX_FITNESS, \
                                     OPTIMIZED_PARAMETERS_DATA, OPTIMIZE_PARAMETERS_LIST, \
                                     VALUE_COL_INDEX, DEFAULT_SECOND_NUMBER, DEFAULT_PARAMETERS_DATA, \
                                     copy_string_array, permutation_count, merge_2parametes_array_data
@@ -45,6 +45,7 @@ class Individual(object):
         # create dictionaries for storing orders pools 
         self.ORDER_CLOSED_DICT = {} 
         self.ORDER_OPENED_DICT = {} 
+        self.ORDER_DELETED_DICT = {}
         
     #===============================================================================
     def create_random_genes(self):
@@ -213,17 +214,6 @@ class Individual(object):
         # create the whole completed parameters for running EA
         self.genes_completed = merge_2parametes_array_data(self.genes_completed, self.genes)
     
-#     #===============================================================================
-#     # fitness_result = (genes_completed, net_profit, fitness, ORDER_CLOSED_DICT, ORDER_OPENED_DICT, DATE_DATA_DICT)
-#         
-#     def save_fitness(self, fitness_result):
-#         
-#         self.net_profit = fitness_result[1]
-#         self.fitness = fitness_result[2]
-#         self.ORDER_CLOSED_DICT = fitness_result[3]
-#         self.ORDER_OPENED_DICT = fitness_result[4]
-#         self.DATE_DATA_DICT = fitness_result[5]
-        
         
 ################################################################################
 ##########################           CLASS           ###########################
@@ -254,6 +244,8 @@ class Population(object):
         # create dictionaries for storing orders pools and dates 
         self.DATE_DATA_DICT = {} 
         
+        # create an instance of EA for running 
+        self.happyforex_EA_instance = HappyForexEA()
         
     #===============================================================================
     # Initialize population
@@ -350,15 +342,15 @@ class Population(object):
         '''
         
         Individual.fitness = DEFAULT_NUMBER
-        happyforex_EA_instance = HappyForexEA()
+        self.happyforex_EA_instance.reset()
         
         # run the EA logic to return the profit
-        Individual.net_profit = happyforex_EA_instance.run(Individual.genes_completed)
-        Individual.ORDER_CLOSED_DICT = happyforex_EA_instance.ORDER_CLOSED_DICT
-        Individual.ORDER_OPENED_DICT = happyforex_EA_instance.ORDER_OPENED_DICT
+        Individual.net_profit = self.happyforex_EA_instance.run(Individual.genes_completed)
+        Individual.ORDER_CLOSED_DICT = self.happyforex_EA_instance.ORDER_CLOSED_DICT
+        Individual.ORDER_OPENED_DICT = self.happyforex_EA_instance.ORDER_OPENED_DICT
+        Individual.ORDER_DELETED_DICT = self.happyforex_EA_instance.ORDER_DELETED_DICT
         
-        self.DATE_DATA_DICT = happyforex_EA_instance.DATE_DATA_DICT
-        
+        self.DATE_DATA_DICT = self.happyforex_EA_instance.DATE_DATA_DICT
         
         # calculate fitness for the HappyForex EA
         if Individual.net_profit > NET_PROFIT:

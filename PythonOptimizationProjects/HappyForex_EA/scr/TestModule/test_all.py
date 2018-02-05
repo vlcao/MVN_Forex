@@ -7,16 +7,17 @@ import unittest
 import os
 import pandas as pd
 
-from EAModule.happyforex_EA import BrokerIs5Digit_0, HappyForexEA
-from DataHandler.happyforex_Datahandler import DEFAULT_NUMBER, DEFAULT_SECOND_NUMBER, \
-    OP_BUY, OP_BUYLIMIT, DIGITS, TICK_DATA, MARKET_TIME_STANDARD, DATETIME_FORMAT, \
+from EAModule.happyforex_EA import HappyForexEA
+from DataHandler.hardcoded_data import DEFAULT_NUMBER, DEFAULT_SECOND_NUMBER, \
+    OP_BUY, OP_BUYLIMIT, MARKET_TIME_STANDARD, DATETIME_FORMAT, LOTS_COL_INDEX, \
     DATETIME_COL_INDEX, OP_SELL, PROFIT_COL_INDEX, ORDER_TYPE_COL_INDEX, \
     convert_backflash2forwardflash, number_after_decimal, display_an_dict_with_delimiter, float_checker, \
     integer_checker, get_subset_dataframe, write_dict2csv_no_header, \
     write_array2csv_with_delimiter_no_header, copy_string_array, \
     permutation_count, combination_count, display_an_array_with_delimiter, \
     merge_2parametes_array_data, point_of_symbol, digit_of_symbol, \
-    is_time_earlier, convert_string_datetime2float, LOTS_COL_INDEX
+    is_time_earlier, convert_string_datetime2float, convert_string_day2float, \
+    convert_string_millisecond2float
     
 
 happyforex_EA_instance = HappyForexEA()
@@ -280,9 +281,9 @@ class TestHappyForexEA(unittest.TestCase):
     def test_BrokerIs5Digit_0(self):
         print('#============================== test_BrokerIs5Digit_0 ==============================')
         
-        print("==> DIGITS: %s" % DIGITS)
+        print("==> DIGITS: %s" % happyforex_EA_instance.DIGITS)
            
-        flag_5Digit = BrokerIs5Digit_0() 
+        flag_5Digit = happyforex_EA_instance.BrokerIs5Digit_0() 
         print(flag_5Digit)
            
         # testing
@@ -343,7 +344,7 @@ class TestHappyForexEA(unittest.TestCase):
         # HEADER_HISTORY_DATA = ['Date_Time', 'Bid', 'Ask', 'Volume']
         # TICK_DATA[DEFAULT_NUMBER] = [2003.07.01_00:00:21.132,1.65538,1.65524,11.5,7.6]
         print('HEADER_HISTORY_DATA = [Date_Time, Bid, Ask, Volume]')
-        print("==> TICK_DATA[0]: %s" % (TICK_DATA[DEFAULT_NUMBER]))
+        print("==> TICK_DATA[0]: %s" % (happyforex_EA_instance.TICK_DATA[DEFAULT_NUMBER]))
         
         
         MODE_SPREAD_1 = happyforex_EA_instance.MODE_SPREAD_1(DEFAULT_NUMBER)
@@ -556,7 +557,7 @@ class TestHappyForexEA(unittest.TestCase):
     def test_BuyPendingOrder13_8(self):
         print('#============================== test_BuyPendingOrder13_8 ==============================')
     
-        happyforex_EA_instance.current_datetime = str(TICK_DATA[DEFAULT_NUMBER][DATETIME_COL_INDEX])
+        happyforex_EA_instance.current_datetime = str(happyforex_EA_instance.TICK_DATA[DEFAULT_NUMBER][DATETIME_COL_INDEX])
          
         happyforex_EA_instance.bid_price = 1.35226
         happyforex_EA_instance.ask_price = 1.35251
@@ -583,7 +584,7 @@ class TestHappyForexEA(unittest.TestCase):
     def test_CalculateProfit_5(self):
         print('#============================== test_CalculateProfit_5 ==============================')
         
-        happyforex_EA_instance.current_datetime = TICK_DATA[DEFAULT_NUMBER][DATETIME_COL_INDEX]
+        happyforex_EA_instance.current_datetime = happyforex_EA_instance.TICK_DATA[DEFAULT_NUMBER][DATETIME_COL_INDEX]
         happyforex_EA_instance.bid_price = 1.50048
         happyforex_EA_instance.ask_price = 1.35251
         
@@ -647,7 +648,7 @@ class TestHappyForexEA(unittest.TestCase):
     def test_UpdateProfit_1(self):
         print('#============================== test_UpdateProfit_1 ==============================')
         
-        happyforex_EA_instance.current_datetime = TICK_DATA[DEFAULT_NUMBER][DATETIME_COL_INDEX]
+        happyforex_EA_instance.current_datetime = happyforex_EA_instance.TICK_DATA[DEFAULT_NUMBER][DATETIME_COL_INDEX]
         happyforex_EA_instance.bid_price = 1.35226
         happyforex_EA_instance.ask_price = 1.35251
         
@@ -755,43 +756,59 @@ class TestHappyForexEA(unittest.TestCase):
     def test_DayOfWeek_3(self):
         print('#============================== test_DayOfWeek_3 ==============================')
         
-        today_date = happyforex_EA_instance.DayOfWeek_3()
-        print("==> happyforex_EA_instance.DayOfWeek_3: %s" % today_date)
+        Day_2009_05_01 = convert_string_day2float('2009.05.01_00:00:00,000', MARKET_TIME_STANDARD, DATETIME_FORMAT)
+        happyforex_EA_instance.current_day = Day_2009_05_01
+        print("==> Day_2009_05_01 in numbers = %s" % Day_2009_05_01)
+        
+        
+        test_day_of_week = happyforex_EA_instance.DayOfWeek_3()
+        print("==> test_day_of_week: %s" % test_day_of_week)
            
-        # testing
-        # TODO: CHANGE THE defined_date TO REFLECT THE CURRENT HOUR OF SYSTEM TIME (0-Monday,1,2,3,4,5,6)
-        defined_date = 4
-        print("==> defined_date: %s" % defined_date)
+        # testing (0-Monday,1,2,3,4,5,6)
+        defined_day_of_week = 4
+        print("==> defined_day_of_week: %s" % defined_day_of_week)
            
-        self.assertEquals(defined_date, today_date , "Function IS NOT correct.")
-          
+        self.assertEquals(defined_day_of_week, test_day_of_week , "Function IS NOT correct.")
+        
     #===========================================================================
     def test_TimeHour_4(self):
         print('#============================== test_TimeHour_4 ==============================')
         
-        today_hour = happyforex_EA_instance.TimeHour_4()
-        print("==> happyforex_EA_instance.TimeLocal: %s" % today_hour)
+        happyforex_EA_instance = HappyForexEA()
+        
+        Time_04_30 = convert_string_millisecond2float('2009.05.01_06:30:02,624', MARKET_TIME_STANDARD, DATETIME_FORMAT)
+        happyforex_EA_instance.current_time = Time_04_30
+        print("==> Time_04_30 in numbers = %s" % Time_04_30)
+        
+        
+        test_hour_tick = happyforex_EA_instance.TimeHour_4()
+        print("==> test_hour_tick: %s" % test_hour_tick)
            
         # testing
-        # TODO: CHANGE THE defined_hour TO REFLECT THE CURRENT HOUR OF SYSTEM TIME
-        defined_hour = 16
-        print("==> defined_date: %s" % defined_hour)
+        defined_hour_tick = 6
+        print("==> defined_hour_tick: %s" % defined_hour_tick)
            
-        self.assertEquals(defined_hour, today_hour , "Function IS NOT correct.")
+        self.assertEquals(defined_hour_tick, test_hour_tick , "Function IS NOT correct.")
        
     #===========================================================================
     def test_TimeMinute_3(self):
         print('#============================== test_TimeMinute_3 ==============================')
         
-        today_minute = happyforex_EA_instance.TimeMinute_3()
-        print("==> happyforex_EA_instance.TimeLocal: %s" % today_minute)
+        happyforex_EA_instance = HappyForexEA()
+        
+        Time_04_30 = convert_string_millisecond2float('2009.05.01_06:30:02,624', MARKET_TIME_STANDARD, DATETIME_FORMAT)
+        happyforex_EA_instance.current_time = Time_04_30
+        print("==> Time_04_30 in numbers = %s" % Time_04_30)
+        
+        
+        test_minute_tick = happyforex_EA_instance.TimeHour_4()
+        print("==> test_minute_tick: %s" % test_minute_tick)
            
         # testing
-        # TODO: CHANGE THE defined_minute TO REFLECT THE CURRENT HOUR OF SYSTEM TIME
-        defined_minute = 13
-        print("==> defined_date: %s" % defined_minute)
+        defined_minute_tick = 30
+        print("==> defined_minute_tick: %s" % defined_minute_tick)
            
-        self.assertEquals(defined_minute, today_minute , "Function IS NOT correct.")    
+        self.assertEquals(defined_minute_tick, test_minute_tick , "Function IS NOT correct.") 
 
 ################################################################################
 ##########################           CLASS           ###########################
