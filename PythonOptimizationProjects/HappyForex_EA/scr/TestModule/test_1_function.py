@@ -4,8 +4,6 @@ Created on Jan 31, 2018
 @author: cao.vu.lam
 '''
 import unittest
-from EAModule.happyforex_EA import HappyForexEA
-from DataHandler.hardcoded_data import convert_string_millisecond2float
 
 DEFAULT_NUMBER = 0
 DEFAULT_SECOND_NUMBER = 1
@@ -13,53 +11,81 @@ MARKET_TIME_STANDARD = '1970.01.01_00:00:00,000'
 DATETIME_FORMAT = '%Y.%m.%d_%H:%M:%S,%f'
 
 #===============================================================================
-import _strptime
-from datetime import datetime
+import csv
+import os
+
+from os import path, remove
 
 #===============================================================================
-def convert_string_millisecond2float(convert_datetime, std_datetime, sformat):
-    ''' Convert a string of date and time with its standard time and format into float 
-    which is sum of total seconds and milliseconds '''
+def display_an_dict_with_delimiter(dict_out, delimiter):
+    ''' Display dictionary with the input delimiter (ex: '=' or ',' or '/' etc.) '''
+    
+    # display dictionary with iterating over items returning key, value tuples
+    for key, value in dict_out.iteritems():  
+        print('%s' % str(key) + delimiter + '%s' % str(value))
 
-    # get the millisecond from the input date_time
-    convert_datetime_milliseconds = convert_datetime.split(',')[DEFAULT_SECOND_NUMBER]
+#===============================================================================
+def convert_backflash2forwardflash(backflash_path):
+    forwardflash_path = ''
+     
+    # replace the back flash with forward flash
+    for i in range(len(backflash_path)):
+        if backflash_path[i] == '\\':
+            forwardflash_path += '/'
+        else:
+            forwardflash_path += backflash_path[i]
+         
+    return forwardflash_path
+ 
+#===============================================================================
+def write_value_of_dict2csv_no_header(dictionary_out, file_name):
+     
+    # convert the back flash with forward flash (just in case)
+    file_name = convert_backflash2forwardflash(file_name)
     
-    # parse the time format using strptime.
-    convert_datetime = datetime.strptime(convert_datetime, sformat)  
-    std_date = datetime.strptime(std_datetime, sformat)  # standard date
-    
-    # calculate difference between convert_datetime and std_date
-    diff_time = convert_datetime - std_date
-    
-    # convert the different milliseconds into float
-    diff_time__milliseconds = float(diff_time.seconds * 1000) + float(convert_datetime_milliseconds)
-    
-    return diff_time__milliseconds    
+    # If applicable, delete the existing file to generate a fresh file during each execution
+    if path.isfile(file_name):
+        remove(file_name)
+     
+    # write a dictionary to a CSV file
+    with open(file_name, 'wb') as csv_file:
+        writer = csv.writer(csv_file)
+        for key, value in dictionary_out.items():
+            writer.writerow(value)
 
 #===============================================================================
 class Test(unittest.TestCase):
 
 
     #===========================================================================
-    def test_TimeMinute_3(self):
-        print('#============================== test_TimeMinute_3 ==============================')
-      
-        happyforex_EA_instance = HappyForexEA()
-        
-        Time_04_30 = convert_string_millisecond2float('2009.05.01_06:30:02,624', MARKET_TIME_STANDARD, DATETIME_FORMAT)
-        happyforex_EA_instance.current_time = Time_04_30
-        print("==> Time_04_30 in numbers = %s" % Time_04_30)
-        
-        
-        test_minute_tick = happyforex_EA_instance.TimeMinute_3()
-        print("==> test_minute_tick: %s" % test_minute_tick)
+    def test_write_value_of_dict2csv_no_header(self):
+        print('')
+        print('#============================== test_write_value_of_dict2csv_no_header ==============================')
+           
+        test_dict = {'value1': [10, 20, 20], 'value2': [50, 60, 10], 'value3': [40, 26, 80]}
+        print('test_dict =  = {value1: 10, value2: 20, value3: 30}')
+           
+        # display dictionary with iterating over items returning key, value tuples
+        display_an_dict_with_delimiter(test_dict, ':')
+   
+        file_name_dict = 'myDic_out.csv'
+        write_value_of_dict2csv_no_header(test_dict, file_name_dict)
+           
+                  
+        # testing
+        file_exist_flag = False
+        if os.path.isfile(file_name_dict):
+            file_exist_flag = True 
+        self.assertTrue(file_exist_flag, "CANNOT write the array to the CSV file.")
+           
            
         # testing
-        defined_minute_tick = 30
-        print("==> defined_minute_tick: %s" % defined_minute_tick)
-           
-        self.assertEquals(defined_minute_tick, test_minute_tick , "Function IS NOT correct.")
-        
+        file_size_flag = False
+        statinfo = os.stat(file_name_dict)
+        if (statinfo.st_size > 0):
+            file_size_flag = True
+        self.assertTrue(file_size_flag, "CANNOT write any data of the array to the CSV file.")
+               
 #===============================================================================
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']

@@ -80,8 +80,8 @@ def main():
     if happyforexGA.fittest_ind.fitness < MAX_FITNESS:
         
         time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
-        file_path_highest_solution = folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + FILENAME_HIGHEST_FITNESS
-        file_path_highest_parameters = folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + FILENAME_HIGHEST_PARAMETERS
+        file_path_highest_solution = folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + SYMBOL + FILENAME_HIGHEST_FITNESS
+        file_path_highest_parameters = folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + SYMBOL + FILENAME_HIGHEST_PARAMETERS
         
         write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes, file_path_highest_solution, '=')
         write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes_completed, file_path_highest_parameters, '=')
@@ -161,8 +161,8 @@ def main():
                 remove(file_path_highest_solution)
             
             time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
-            file_path_highest_solution = folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + FILENAME_HIGHEST_FITNESS
-            file_path_highest_parameters = folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + FILENAME_HIGHEST_PARAMETERS
+            file_path_highest_solution = folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + SYMBOL + FILENAME_HIGHEST_FITNESS
+            file_path_highest_parameters = folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + SYMBOL + FILENAME_HIGHEST_PARAMETERS
         
             write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes, file_path_highest_solution, '=')
             write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes_completed, file_path_highest_parameters, '=')
@@ -189,8 +189,8 @@ def main():
     # Write out the whole best parameters (converted back 1/0 in the data into True/False)
     
     time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
-    write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes, folder_output + time_stamp + '_' + FILENAME_BEST_SOLUTION, '=')
-    write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes_completed, folder_output + time_stamp + '_' + FILENAME_BEST_PARAMETERS, '=')
+    write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes, folder_output + time_stamp + '_' + SYMBOL + FILENAME_BEST_SOLUTION, '=')
+    write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes_completed, folder_output + time_stamp + '_' + SYMBOL + FILENAME_BEST_PARAMETERS, '=')
     
     write_dict2csv_no_header(happyforexGA.fittest_ind.ORDER_CLOSED_DICT, folder_output + time_stamp + '_' + FILENAME_ORDER_CLOSED_HISTORY)
     write_dict2csv_no_header(happyforexGA.fittest_ind.ORDER_OPENED_DICT, folder_output + time_stamp + '_' + FILENAME_ORDER_OPENED_HISTORY)

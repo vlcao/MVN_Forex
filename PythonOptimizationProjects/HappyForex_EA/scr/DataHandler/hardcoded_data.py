@@ -65,7 +65,7 @@ FOLDER_DATA_OUTPUT = SCR_DIR_PATH + '/DataHandler/data/output/'
 FOLDER_TICK_DATA_ORIGINAL = '/USDJPY_Ticks_May2009_Nov2016_Original'
 FOLDER_TICK_DATA_MODIFIED = '/USDJPY_Ticks_May2009_Nov2016_Modified'
 
-FILENAME_TICK_DATA = SYMBOL + '/USDJPY-2009-05.csv'
+FILENAME_TICK_DATA = '/USDJPY-2009-05.csv'
 FILENAME_PARAMETER_DEFAULT = 'default_parameters.csv'
 FILENAME_PARAMETER_SETTING_2 = 'parameters_setting_2.csv'
 FILENAME_PARAMETER_SETTING_3 = 'parameters_setting_3.csv'
@@ -77,9 +77,9 @@ FILENAME_PROFILE_EA = "HappyForexEA_ProfileRun.prof"
 FILENAME_LOG_BACKTEST = 'HappyForexBackTest_LogRun.log'
 FILENAME_PROFILE_BACKTEST = "HappyForexBackTest_ProfileRun.prof"
 FILENAME_BEST_SOLUTION = 'fitness_best_solution.csv'
-FILENAME_BEST_PARAMETERS = SYMBOL + '_whole_best_parameters.csv'
+FILENAME_BEST_PARAMETERS = '_whole_best_parameters.csv'
 FILENAME_HIGHEST_FITNESS = 'fitness_highest_solution.csv'
-FILENAME_HIGHEST_PARAMETERS = SYMBOL + '_whole_highest_parameters.csv'
+FILENAME_HIGHEST_PARAMETERS = '_whole_highest_parameters.csv'
 FILENAME_ORDER_CLOSED_HISTORY = 'order_closed_history.csv'
 FILENAME_ORDER_OPENED_HISTORY = 'order_opened_history.csv'
 FILENAME_ORDER_DELETED_HISTORY = 'order_deleted_history.csv'
@@ -258,7 +258,8 @@ def create_a_new_row(previous_row, row):
 
 #===============================================================================
 def create_multiple_tick_data_from_wholefolder(folder_name):
-    ''' Read each row of all Original Tick data file, create a new version of that row, and then
+    ''' For Pepperstone Tick Data Format. 
+    ==> Read each row of all Original Tick data file, create a new version of that row, and then
     combine them by writing each new version row into 1 new CSV file 
     Ex: [USD/JPY, 20090501 00:00:00.296, 98.89, 98.902]
         [USD/JPY, 20090501 00:00:00.299, 98.887, 98.899]
@@ -393,24 +394,27 @@ def create_a_tick_data_from_wholefolder(folder_name, file_name):
     print("==> Completed {0} files!!!".format(file_index))
 
 #===============================================================================
-def combine_all_files_in_a_folder(folder_name, combined_file_name):    
-    ''' Combine all CSV files in a folder into 1 CSV file only '''
+def combine_all_files_in_a_folder(folder_name, combined_file_name, file_type):    
+    ''' Combine all CSV files in a folder into 1 CSV file only with file_type (ex: *.csv) '''
 
     # convert the back flash with forward flash (just in case)
     folder_name = convert_backflash2forwardflash(folder_name)
-    allFiles = glob.glob(folder_name + '/*.csv')
+    allFiles = glob.glob(folder_name + '/' + file_type)
     
-#     combined_file = []
     combined_file_name = convert_backflash2forwardflash(combined_file_name)
     csv_combined_file_write = open(combined_file_name, "w")  # "w" indicates that you're writing strings to the file
              
-    file_index = DEFAULT_NUMBER
+    file_index = DEFAULT_SECOND_NUMBER
     for file_ in allFiles:
-        print("==> processing file {0}...".format(file_index))
+        log.info(" ==> combining file {0}...".format(file_index))
+        time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+        print("{0} ==> combining file {1}...".format(time_stamp, file_index))
         
         if (file_index % 10 == DEFAULT_NUMBER):
             perc = round((float(file_index) / float(len(allFiles))) * float(100), 2)
-            print("... ==> processing {0}% of the data...".format(perc))
+            log.info("... ==> processing {0}% of the data...".format(perc))
+            time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+            print("{0} ... ==> processing {1}% of the data...".format(time_stamp, perc))
           
         # open the CSV file
         ifile = open(file_, "rU")
@@ -423,7 +427,9 @@ def combine_all_files_in_a_folder(folder_name, combined_file_name):
         
         file_index += DEFAULT_SECOND_NUMBER
       
-    print("==> Completed {0} files!!!".format(file_index))
+    log.info("==> Completed combining {0} files!!!".format(file_index - DEFAULT_SECOND_NUMBER))
+    time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+    print("{0} ==> Completed combining {1} files!!!".format(time_stamp, file_index - DEFAULT_SECOND_NUMBER))
 
 #===============================================================================
 def load_wholefolder2array(folder_name):    
@@ -594,7 +600,7 @@ def write_array2csv_with_delimiter_no_header(array, file_name, delimiter):
         csv.write(row)
 
 #===============================================================================
-def write_dict2csv_no_header(dictionary_out, file_name):
+def write_wholedict2csv_no_header(dictionary_out, file_name):
      
     # convert the back flash with forward flash (just in case)
     file_name = convert_backflash2forwardflash(file_name)
@@ -608,6 +614,40 @@ def write_dict2csv_no_header(dictionary_out, file_name):
         writer = csv.writer(csv_file)
         for key, value in dictionary_out.items():
             writer.writerow([key, value])
+
+#===============================================================================
+def write_value_of_dict2csv_no_header(dictionary_out, file_name):
+     
+    # convert the back flash with forward flash (just in case)
+    file_name = convert_backflash2forwardflash(file_name)
+    
+    # If applicable, delete the existing file to generate a fresh file during each execution
+    if path.isfile(file_name):
+        remove(file_name)
+     
+    # write a dictionary to a CSV file
+    with open(file_name, 'wb') as csv_file:
+        writer = csv.writer(csv_file)
+        for key, value in dictionary_out.items():
+            writer.writerow(value)
+
+#===============================================================================
+#===============================================================================
+def write_list_of_dicts_no_header(list_of_dicts, file_name):
+     
+    # convert the back flash with forward flash (just in case)
+    file_name = convert_backflash2forwardflash(file_name)
+    
+    # If applicable, delete the existing file to generate a fresh file during each execution
+    if path.isfile(file_name):
+        remove(file_name)
+     
+    # write a dictionary to a CSV file
+    with open(file_name, 'wb') as csv_file:
+        writer = csv.writer(csv_file)
+        for dictionary_out in list_of_dicts:
+            for key, value in dictionary_out.items():
+                writer.writerow([key, value])
 
 #===============================================================================
 def display_an_array_with_delimiter(array_out, delimiter):
@@ -752,8 +792,8 @@ def order_delete(self, row_index, array_data):
       
 #===============================================================================
 # Create TICK_DATA with Modification from Original Tick Data CSV file
-# TICK_DATA = create_a_tick_data_from_wholefolder(FOLDER_DATA_INPUT + SYMBOL + FOLDER_TICK_DATA_ORIGINAL, FOLDER_DATA_OUTPUT + FILENAME_TICK_DATA)
-# create_multiple_tick_data_from_wholefolder('E:\EclipsePreferences-csse120-2011-06\Happy Forex\src\DataHandler\data\input\USDJPY\USDJPY_Ticks_May2009_Nov2016_Original')
+# TICK_DATA = create_a_tick_data_from_wholefolder(FOLDER_DATA_INPUT + SYMBOL + FOLDER_TICK_DATA_ORIGINAL, FOLDER_DATA_OUTPUT + SYMBOL + FILENAME_TICK_DATA)
+create_multiple_tick_data_from_wholefolder('E:\EclipsePreferences-csse120-2011-06\Happy Forex\src\DataHandler\data\input\USDJPY\USDJPY_Ticks_May2009_Nov2016_Original')
  
 
 log.info("==> Load DEFAULT_PARAMETERS_DATA: %s ..." % (FOLDER_DATA_INPUT + FILENAME_PARAMETER_DEFAULT))

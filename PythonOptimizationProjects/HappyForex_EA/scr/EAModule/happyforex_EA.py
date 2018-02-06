@@ -11,20 +11,23 @@ import logging.handlers
 import os
 import glob
 
+from multiprocessing.dummy import Pool as ThreadPool
 from os import path, remove
 from datetime import datetime, date
 from DataHandler.hardcoded_data import DEFAULT_NUMBER, DEPOSIT, DEFAULT_SECOND_NUMBER, \
-    BALANCE_COL_INDEX, BID_COL_INDEX, ASK_COL_INDEX, FILENAME_LOG_EA, DEFAULT_PARAMETERS_DATA, \
+    BALANCE_COL_INDEX, BID_COL_INDEX, ASK_COL_INDEX, FILENAME_LOG_EA, \
     ORDER_TYPE_COL_INDEX, LOTS_COL_INDEX, LEVERAGE, HOURS_OF_ADAY, \
-    FOLDER_DATA_OUTPUT, FILENAME_ORDER_CLOSED_HISTORY, FILENAME_ORDER_OPENED_HISTORY, NET_PROFIT, \
+    FOLDER_DATA_OUTPUT, FILENAME_ORDER_CLOSED_HISTORY, ONE_LOT_VALUE, COMMISSION, NET_PROFIT, \
     VALUE_COL_INDEX, OP_SELL, OP_BUY, OP_SELLLIMIT, OP_BUYLIMIT, DATETIME_COL_INDEX, PROFIT_COL_INDEX, \
-    FILENAME_OPTIMIZE_PARAMETER, ONE_LOT_VALUE, COMMISSION, OPTIMIZED_PARAMETERS_DATA, \
+    FILENAME_ORDER_DELETED_HISTORY, ORDER_ID_COL_INDEX, DATEOFFSET, \
+    MILLISECONDS_OF_ASECOND, SECONDS_OF_ANHOUR, SECONDS_OF_AMINUTE, \
     DAY_COL_INDEX, TIME_COL_INDEX, PRICE_ENTRY_COL_INDEX, PRICE_EXIT_COL_INDEX, \
     FILENAME_PROFILE_EA, FOLDER_DATA_INPUT, TIME_STAMP_FORMAT, SYMBOL, FOLDER_TICK_DATA_MODIFIED, \
-    load_csv2array, point_of_symbol, display_an_array_with_delimiter, digit_of_symbol, \
-    write_dict2csv_no_header, write_array2csv_with_delimiter_no_header, convert_backflash2forwardflash, \
-    FILENAME_ORDER_DELETED_HISTORY, ORDER_ID_COL_INDEX, DATEOFFSET, \
-    MILLISECONDS_OF_ASECOND, SECONDS_OF_ANHOUR, SECONDS_OF_AMINUTE
+    write_value_of_dict2csv_no_header, load_csv2array, point_of_symbol, display_an_array_with_delimiter, digit_of_symbol, \
+    convert_backflash2forwardflash, combine_all_files_in_a_folder, \
+    DEFAULT_PARAMETERS_DATA, OPTIMIZED_PARAMETERS_DATA, FILENAME_ORDER_OPENED_HISTORY, FILENAME_OPTIMIZE_PARAMETER, \
+    BID_NEXTTICK_COL_INDEX, ASK_NEXTTICK_COL_INDEX
+    
     
 log = logging.getLogger(__name__)
 
@@ -105,6 +108,8 @@ class HappyForexEA(object):
         self.current_time = float(DEFAULT_NUMBER)  # (hour + minute + second + millisecond in MILLISECOND)
         self.bid_price = float(DEFAULT_NUMBER)
         self.ask_price = float(DEFAULT_NUMBER)
+        self.bid_nexttick_price = float(DEFAULT_NUMBER)
+        self.ask_nexttick_price = float(DEFAULT_NUMBER)
         self.mode_spread = float(DEFAULT_NUMBER)
         self.order_ID_dict = {}  # a dictionary (as a hash-map) for storing ID
         
@@ -237,6 +242,8 @@ class HappyForexEA(object):
         self.current_time = float(DEFAULT_NUMBER)  # (hour + minute + second + millisecond in MILLISECOND)
         self.bid_price = float(DEFAULT_NUMBER)
         self.ask_price = float(DEFAULT_NUMBER)
+        self.bid_nexttick_price = float(DEFAULT_NUMBER)
+        self.ask_nexttick_price = float(DEFAULT_NUMBER)
         self.mode_spread = float(DEFAULT_NUMBER)
         self.order_ID_dict = {}  # a dictionary (as a hash-map) for storing ID
             
@@ -1174,13 +1181,15 @@ class HappyForexEA(object):
     def OnEveryTick24_1(self):
         ''' Actions for every tick  '''
         
+        # functions for placing Pending orders
         self.WeekdayFilter23_2()
         self.AtCertainTime6_2()
         
         # TODO: Extra Functions for having Open/Market orders: 
-        self.UpdateProfit_2()
+#         self.UpdateProfit_2()
         self.ModifyPendingOrder_2()
         
+        # function for closing orders
         self.CloseOrderIf21_2()
                 
     #===============================================================================
@@ -1315,8 +1324,9 @@ class HappyForexEA(object):
                     flag_modified = False
                     message = ""
                     
+                    # compare entry price with exit price from next tick
                     if (order_type == OP_BUYLIMIT):
-                        exit_price = self.bid_price
+                        exit_price = self.bid_nexttick_price
                         message = "Modified the Pending order OP_BUYLIMIT " + str(order_id) + " to Open order OP_BUY."
                         
                         if (entry_price <= exit_price):
@@ -1326,8 +1336,9 @@ class HappyForexEA(object):
 #                             print("Cannot modify order OP_BUYLIMIT %s due to entry_price <= exit_price." % order_id)
                             log.info("Cannot modify order OP_BUYLIMIT %s due to entry_price <= exit_price." % order_id)
                             
+                    # compare entry price with exit price from next tick
                     elif (order_type == OP_SELLLIMIT):
-                        exit_price = self.ask_price
+                        exit_price = self.ask_nexttick_price
                         message = "Modified the Pending order OP_SELLLIMIT " + str(order_id) + " to Open order OP_SELL."
                         
                         if (entry_price >= exit_price):
@@ -1575,144 +1586,116 @@ class HappyForexEA(object):
             self.Time_of_closing_in_hours += HOURS_OF_ADAY
 
     #===============================================================================
-    def run(self, PARAMETERS_COMPLETED):
-        ''' EA running '''
+    def analised_tick_data(self, PARAMETERS_DATA, file_):
+        # get the file name
+        file_name = convert_backflash2forwardflash(file_)
+        file_basename = str(os.path.basename(file_))
         
-#         ObjectsDeleteAll();   //SKIP from original EA
-#         Comment("");          //SKIP from original EA
+        log.info("==> Loading TICK DATA from file: {0}...".format(file_basename))
+        time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+        print("{0} ==> Loading TICK DATA from file: {1}...".format(time_stamp, file_basename))
+         
+        # Create TICK_DATA from the Modified CSV file
+        TICK_DATA = load_csv2array(file_name)
+        display_an_array_with_delimiter(TICK_DATA, '    ')
         
-        display_an_array_with_delimiter(PARAMETERS_COMPLETED, '=')
-        log.info('#===============================================================================')
-        print('#===============================================================================')
+        DIGITS = digit_of_symbol(float(TICK_DATA[DEFAULT_NUMBER][BID_COL_INDEX]))
+        POINT = point_of_symbol(float(TICK_DATA[DEFAULT_NUMBER][BID_COL_INDEX]))
         
-        # Access the input folder to get the Tick Data
-        folder_name = convert_backflash2forwardflash(FOLDER_DATA_INPUT + SYMBOL + FOLDER_TICK_DATA_MODIFIED)
-        allFiles = glob.glob(folder_name + '/*.csv')
+        # set up all the total parameters for running EA
+        self.reset()
+        self.initilize(PARAMETERS_DATA, DIGITS, POINT)
         
-        # Running EA process
-        file_index = DEFAULT_SECOND_NUMBER
-        for file_ in allFiles:
-            
-            log.info("==> Loading TICK DATA from file {0}/out of {1} files...".format(file_index, len(allFiles)))
-            time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
-            print("{0} ==> Loading TICK DATA from file {1}/out of {2} files...".format(time_stamp, file_index, len(allFiles)))
-            
-            file_name = convert_backflash2forwardflash(file_)
-             
-            # Create TICK_DATA from the Modified CSV file
-            TICK_DATA = load_csv2array(file_name)
-            display_an_array_with_delimiter(TICK_DATA, '    ')
-            
-            DIGITS = digit_of_symbol(float(TICK_DATA[DEFAULT_NUMBER][BID_COL_INDEX]))
-            POINT = point_of_symbol(float(TICK_DATA[DEFAULT_NUMBER][BID_COL_INDEX]))
-            
-            # set up all the total parameters for running EA
-            self.reset()
-            self.initilize(PARAMETERS_COMPLETED, DIGITS, POINT)
-            
-            # save the first day 
-            fprevious_day = float(TICK_DATA[DEFAULT_NUMBER][DAY_COL_INDEX])
-            
-            # access each tick for running EA
-            for row_index in range(len(TICK_DATA)):
-                print("==> row_index: %s" % row_index)
+        # save the first day 
+        fprevious_day = float(TICK_DATA[DEFAULT_NUMBER][DAY_COL_INDEX])
+        
+        # access each tick for running EA
+        for row_index in range(len(TICK_DATA)):
+            if (row_index == DEFAULT_NUMBER):
+                log.info("... ==> start processing the data...")
+                time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+                print("%s... ==> start processing the data..." % time_stamp)
                 
-                if (row_index == DEFAULT_NUMBER):
-                    log.info("... ==> start processing the data...")
-                    time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
-                    print("%s... ==> start processing the data..." % time_stamp)
+            elif (row_index == 10 or row_index == 100 or row_index == 200 or row_index == 400 or row_index == 600 or row_index == 800   
+                  or row_index == 1000 or row_index % 10000 == DEFAULT_NUMBER):
                 
-                elif (row_index == 10 or row_index == 100 or row_index == 200 or row_index == 400 or row_index == 600 or row_index == 800   
-                      or row_index % 1000 == DEFAULT_NUMBER):
-                    
-                    perc = round((float(row_index) / float(len(TICK_DATA))) * float(100), 2)
-                    
-                    log.info("... ==> processing {0}% of the data, date {1}...".format(perc, self.current_datetime))
-                    time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
-                    print("{0}... ==> processing {1}% of the data...".format(time_stamp, perc, self.current_datetime))
-                    
-                    # Write out other data for reference
-                    write_dict2csv_no_header(self.ORDER_CLOSED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_CLOSED_HISTORY)
-                    write_dict2csv_no_header(self.ORDER_OPENED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_OPENED_HISTORY)
-                    write_dict2csv_no_header(self.ORDER_DELETED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_DELETED_HISTORY)
-
+                perc = round((float(row_index) / float(len(TICK_DATA))) * float(100), 2)
                 
-                self.current_datetime = float(TICK_DATA[row_index][DATETIME_COL_INDEX])
-                self.current_day = float(TICK_DATA[row_index][DAY_COL_INDEX])
-                self.current_time = float(TICK_DATA[row_index][TIME_COL_INDEX])
-                self.bid_price = float(TICK_DATA[row_index][BID_COL_INDEX])
-                self.ask_price = float(TICK_DATA[row_index][ASK_COL_INDEX])
-                self.mode_spread = self.MODE_SPREAD_1(self.bid_price, self.ask_price)
+#                 log.info("==> row_index: %s" % row_index)
+                log.info("... ==> processing {0}% of the data, date {1}...".format(perc, self.current_datetime))
+                time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+#                 print("{0} ==> row_index: {1}".format(time_stamp, row_index))
+                print("{0}... ==> processing {1}% of the data...".format(time_stamp, perc, self.current_datetime))
                 
-                # save the previous date when going to a new date 
-                if (fprevious_day != self.current_day):
-                    log.info("==> checking date %s" % self.current_datetime)
-                    log.info("==> row_index: %s" % row_index)
-                    time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
-                    print("%s ==> checking date %s" % (time_stamp, self.current_datetime))
-                    print("%s ==> row_index: %s" % (time_stamp, row_index))
+            self.current_datetime = float(TICK_DATA[row_index][DATETIME_COL_INDEX])
+            self.current_day = float(TICK_DATA[row_index][DAY_COL_INDEX])
+            self.current_time = float(TICK_DATA[row_index][TIME_COL_INDEX])
+            self.bid_price = float(TICK_DATA[row_index][BID_COL_INDEX])
+            self.ask_price = float(TICK_DATA[row_index][ASK_COL_INDEX])
+            self.mode_spread = self.MODE_SPREAD_1(self.bid_price, self.ask_price)
+            self.bid_nexttick_price = float(TICK_DATA[row_index][BID_NEXTTICK_COL_INDEX])
+            self.ask_nexttick_price = float(TICK_DATA[row_index][ASK_NEXTTICK_COL_INDEX])
+        
+            # save the previous date when going to a new date 
+            if (fprevious_day != self.current_day):
+                log.info("==> row_index: %s" % row_index)
+                log.info("==> checking date %s" % self.current_datetime)
+                time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+                print("{0} ==> row_index: {1}".format(time_stamp, row_index))
+                print("{0} ==> checking date {1}".format(time_stamp, self.current_datetime))
+                
+                # save the old date
+                fprevious_day = self.current_day
+                
+                # reset the Maximum Open orders per day
+                self.ords_in_a_day = DEFAULT_NUMBER
+                
+            # check if reaching maximum orders and delete the pending orders            
+            if (self.MaxOrders_9(self.OPENORDERSLIMITDAY)):
+                continue
+            else:
+                if (self.clear):                       
+                    if (self.CloseDeleteAll_1()):
+                        self.clear = False
+                    else:
+                        return
+                            
+                # check total profit at the moment
+                self.CurrentProfit = self.ProfitCheck_3()
+                
+                # check total balance at the moment
+                self.balance = self.AccountBalance_1()  # uzavrete obchody
                     
-                    # save the old date
-                    fprevious_day = self.current_day
-                    
-                    # reset the Maximum Open orders per day
-                    self.ords_in_a_day = DEFAULT_NUMBER
-                    
-                    # Write out other data for reference
-                    write_dict2csv_no_header(self.ORDER_CLOSED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_CLOSED_HISTORY)
-                    write_dict2csv_no_header(self.ORDER_OPENED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_OPENED_HISTORY)
-                    write_dict2csv_no_header(self.ORDER_DELETED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_DELETED_HISTORY)
-
-                    
-                # check if reaching maximum orders and delete the pending orders            
-                if (self.MaxOrders_9(self.OPENORDERSLIMITDAY)):
-                    continue
-                else:
-                    if (self.clear):                       
-                        if (self.CloseDeleteAll_1()):
-                            self.clear = False
-                        else:
+                # --> SAFEEQUITYSTOPOUT and AUTOEQUITYMANAGER
+                if (self.SAFEEQUITYSTOPOUT 
+                    and (self.SAFEEQUITYRISK / float(100)) * self.balance < self.CurrentProfit * float(-1) 
+                    and self.CloseDeleteAll_1() == False):
+                            self.clear = True
+                            return 
+                
+                if (self.AUTOEQUITYMANAGER 
+                    and (self.EQUITYGAINPERCENT / float(100)) * self.balance < self.CurrentProfit 
+                    and self.CloseDeleteAll_1() == False):
+                            self.clear = True
                             return
-                                
-                    # check total profit at the moment
-                    self.CurrentProfit = self.ProfitCheck_3()
-                    
-                    # check total balance at the moment
-                    self.balance = self.AccountBalance_1()  # uzavrete obchody
-                        
-                    # --> SAFEEQUITYSTOPOUT and AUTOEQUITYMANAGER
-                    if (self.SAFEEQUITYSTOPOUT 
-                        and (self.SAFEEQUITYRISK / float(100)) * self.balance < self.CurrentProfit * float(-1) 
-                        and self.CloseDeleteAll_1() == False):
-                                self.clear = True
-                                return 
-                    
-                    if (self.AUTOEQUITYMANAGER 
-                        and (self.EQUITYGAINPERCENT / float(100)) * self.balance < self.CurrentProfit 
-                        and self.CloseDeleteAll_1() == False):
-                                self.clear = True
-                                return
-                   
-                    # Original Function from original EA
-                    self.OnEveryTick24_1()
-                
-                    # check total profit and balance at the moment again (just in case)
-                    self.CurrentProfit = self.ProfitCheck_3()
-                    self.balance = self.AccountBalance_1()  # uzavrete obchody
-                
-            log.info("==> Completed loading file %s !!!" % file_index)
-            time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
-            print("%s ==> Completed loading file %s !!!" % (time_stamp, file_index))    
+               
+                # Original Function from original EA
+                self.OnEveryTick24_1()
             
-            # Write out other data for reference
-            write_dict2csv_no_header(self.ORDER_CLOSED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_CLOSED_HISTORY)
-            write_dict2csv_no_header(self.ORDER_OPENED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_OPENED_HISTORY)
-            write_dict2csv_no_header(self.ORDER_DELETED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_DELETED_HISTORY)
-
-            # increase file number counter            
-            file_index += DEFAULT_SECOND_NUMBER
+                # check total profit and balance at the moment again (just in case)
+                self.CurrentProfit = self.ProfitCheck_3()
+                self.balance = self.AccountBalance_1()  # uzavrete obchody
+            
+        log.info("==>  Completed loading file: {0}...".format(file_basename))
+        time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+        print("{0} ==>  Completed loading file: {1}...".format(time_stamp, file_basename))
         
-        return (self.CurrentProfit)
+        # Write out other data for reference
+        file_basename.split('.')[DEFAULT_NUMBER]
+        write_value_of_dict2csv_no_header(self.ORDER_CLOSED_DICT, FOLDER_DATA_OUTPUT + SYMBOL + '/' + file_basename + '_' + FILENAME_ORDER_CLOSED_HISTORY)
+        write_value_of_dict2csv_no_header(self.ORDER_DELETED_DICT, FOLDER_DATA_OUTPUT + SYMBOL + '/' + file_basename + '_' + FILENAME_ORDER_DELETED_HISTORY)
+
+        return self.CurrentProfit
 
     #===============================================================================
     def run_nothing(self):
@@ -1722,6 +1705,45 @@ class HappyForexEA(object):
         
         return (self.CurrentProfit)
     
+#===============================================================================
+def run(PARAMETERS_DATA):
+    ''' EA running '''
+    
+    total_profit = float(DEFAULT_NUMBER) 
+    
+    display_an_array_with_delimiter(PARAMETERS_DATA, '=')
+    log.info('#===============================================================================')
+    print('#===============================================================================')
+    
+    
+    # Access the input folder to get the Tick Data
+    folder_name = convert_backflash2forwardflash(FOLDER_DATA_INPUT + SYMBOL + FOLDER_TICK_DATA_MODIFIED)
+    allFiles = glob.glob(folder_name + '/*.csv')
+    
+    # make the Pool of workers
+    ea_pool = ThreadPool(4)
+    
+    # Running EA process
+    results = [ea_pool.apply_async(HappyForexEA().analised_tick_data, (PARAMETERS_DATA, file_,))
+               for file_ in allFiles]
+     
+    # --> proxy.get() waits for task completion and returns the result
+    profits = [r.get() for r in results]  
+     
+    # close the pool and wait for the work to finish 
+    ea_pool.close() 
+    
+    
+    # write out other data for reference
+    combine_all_files_in_a_folder(FOLDER_DATA_OUTPUT + SYMBOL,
+                                  FOLDER_DATA_OUTPUT + SYMBOL + '/' + FILENAME_ORDER_CLOSED_HISTORY,
+                                  '*_' + FILENAME_ORDER_CLOSED_HISTORY)
+    
+    # get the total profit after running all the Tick data
+    for profit_ in profits:
+        total_profit += float(profit_)
+    
+    return total_profit
     
 #===============================================================================
 if __name__ == "__main__":
@@ -1740,19 +1762,14 @@ if __name__ == "__main__":
     root.addHandler(handler)
     
     try:
-        # create an instance EA for running 
-        happyforex_EA_instance = HappyForexEA()
+#         # create an instance EA for running 
+#         happyforex_EA_instance = HappyForexEA()
              
         # running EA
-        cProfile.run('happyforex_EA_instance.run(DEFAULT_PARAMETERS_DATA)', FOLDER_DATA_OUTPUT + FILENAME_PROFILE_EA)
+        cProfile.run('run(DEFAULT_PARAMETERS_DATA)', FOLDER_DATA_OUTPUT + FILENAME_PROFILE_EA)
 #         happyforex_EA_instance.run(DEFAULT_PARAMETERS_DATA)
-                
-        # Write out other data for reference
-        write_array2csv_with_delimiter_no_header(OPTIMIZED_PARAMETERS_DATA, FOLDER_DATA_OUTPUT + FILENAME_OPTIMIZE_PARAMETER, '=')
-        write_dict2csv_no_header(happyforex_EA_instance.ORDER_CLOSED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_CLOSED_HISTORY)
-        write_dict2csv_no_header(happyforex_EA_instance.ORDER_OPENED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_OPENED_HISTORY)
-        write_dict2csv_no_header(happyforex_EA_instance.ORDER_DELETED_DICT, FOLDER_DATA_OUTPUT + FILENAME_ORDER_DELETED_HISTORY)
-
+        
+        
     except Exception:
         logging.exception("Exception in main")
         exit(1) 

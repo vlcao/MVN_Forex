@@ -12,12 +12,12 @@ from DataHandler.hardcoded_data import DEFAULT_NUMBER, DEFAULT_SECOND_NUMBER, \
     OP_BUY, OP_BUYLIMIT, MARKET_TIME_STANDARD, DATETIME_FORMAT, LOTS_COL_INDEX, \
     DATETIME_COL_INDEX, OP_SELL, PROFIT_COL_INDEX, ORDER_TYPE_COL_INDEX, \
     convert_backflash2forwardflash, number_after_decimal, display_an_dict_with_delimiter, float_checker, \
-    integer_checker, get_subset_dataframe, write_dict2csv_no_header, \
+    integer_checker, get_subset_dataframe, write_wholedict2csv_no_header, \
     write_array2csv_with_delimiter_no_header, copy_string_array, \
     permutation_count, combination_count, display_an_array_with_delimiter, \
     merge_2parametes_array_data, point_of_symbol, digit_of_symbol, \
     is_time_earlier, convert_string_datetime2float, convert_string_day2float, \
-    convert_string_millisecond2float
+    convert_string_millisecond2float, write_value_of_dict2csv_no_header
     
 
 happyforex_EA_instance = HappyForexEA()
@@ -914,7 +914,7 @@ class TestDataHandler(unittest.TestCase):
         display_an_dict_with_delimiter(test_dict, ':')
    
         file_name_dict = 'myDic_out.csv'
-        write_dict2csv_no_header(test_dict, file_name_dict)
+        write_wholedict2csv_no_header(test_dict, file_name_dict)
            
                   
         # testing
@@ -930,6 +930,27 @@ class TestDataHandler(unittest.TestCase):
         if (statinfo.st_size > 0):
             file_size_flag = True
         self.assertTrue(file_size_flag, "CANNOT write any data of the array to the CSV file.")
+           
+    #===========================================================================
+    def test_write_value_of_dict2csv_no_header(self):
+        print('')
+        print('#============================== test_write_value_of_dict2csv_no_header ==============================')
+           
+        test_dict = {'value1': [10, 20, 20], 'value2': [50, 60, 10], 'value3': [40, 26, 80]}
+        print('test_dict =  = {value1: 10, value2: 20, value3: 30}')
+           
+        # display dictionary with iterating over items returning key, value tuples
+        display_an_dict_with_delimiter(test_dict, ':')
+   
+        file_name_dict = 'myDic_out.csv'
+        write_value_of_dict2csv_no_header(test_dict, file_name_dict)
+           
+                  
+        # testing
+        file_exist_flag = False
+        if os.path.isfile(file_name_dict):
+            file_exist_flag = True 
+        self.assertTrue(file_exist_flag, "CANNOT write the array to the CSV file.")
            
     #===========================================================================
     def test_write_array2csv_with_delimiter(self):
