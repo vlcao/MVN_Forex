@@ -5,17 +5,33 @@ Created on Dec 22, 2017
 '''
 #!/usr/bin/env python
 
-import logging
 import random
 import sys
-from DataHandler.hardcoded_data import DEFAULT_NUMBER, MAX_LOTS, NET_PROFIT, MAX_FITNESS, \
-                                    OPTIMIZED_PARAMETERS_DATA, OPTIMIZE_PARAMETERS_LIST, \
-                                    VALUE_COL_INDEX, DEFAULT_SECOND_NUMBER, DEFAULT_PARAMETERS_DATA, \
-                                    copy_string_array, permutation_count, merge_2parametes_array_data
-from EAModule.happyforex_EA import HappyForexEA
+import logging.handlers
+import shutil
+import os
+from datetime import datetime
+from os import path, remove
+from StrategyTesterModule.happyforex_ST import HappyForexEA
 from multiprocessing.dummy import Pool as ThreadPool
 
+from DataHandler.hardcoded_data import MAX_LOTS, NET_PROFIT, MAX_FITNESS, \
+                                    OPTIMIZED_PARAMETERS_DATA, OPTIMIZE_PARAMETERS_LIST, \
+                                    VALUE_COL_INDEX, DEFAULT_SECOND_NUMBER_INT, DEFAULT_PARAMETERS_DATA, \
+                                    copy_string_array, permutation_count, merge_2parametes_array_data, \
+                                    DEFAULT_NUMBER_INT, FOLDER_DATA_OUTPUT, SYMBOL, \
+                                    FILENAME_HIGHEST_FITNESS, FILENAME_BEST_SOLUTION, FILENAME_BEST_PARAMETERS, \
+                                    FILENAME_POPULATION_INITIAL, FILENAME_POPULATION_FINAL, \
+                                    FILENAME_ORDER_CLOSED_HISTORY, FILENAME_ORDER_OPENED_HISTORY, \
+                                    FILENAME_HIGHEST_PARAMETERS, TIME_STAMP_FORMAT, \
+                                    FILENAME_LOG_BACKTEST, FILENAME_PROFILE_BACKTEST, FILENAME_ORDER_DELETED_HISTORY, \
+                                    write_wholedict2csv_no_header, write_array2csv_with_delimiter_no_header, \
+                                    display_an_array_with_delimiter, \
+    DEFAULT_NUMBER_FLOAT
+import cProfile
+
 log = logging.getLogger(__name__)
+
 
 ################################################################################
 ##########################           CLASS           ###########################
@@ -33,10 +49,10 @@ class Individual(object):
         self.logger = logging.getLogger(__name__)
         
         # default attributes
-        self.net_profit = DEFAULT_NUMBER
-        self.total_win = DEFAULT_NUMBER
-        self.fitness = DEFAULT_NUMBER
-        self.individual_ID = str(DEFAULT_NUMBER)
+        self.net_profit = DEFAULT_NUMBER_INT
+        self.total_win = DEFAULT_NUMBER_INT
+        self.fitness = DEFAULT_NUMBER_INT
+        self.individual_ID = str(DEFAULT_NUMBER_INT)
        
         # copy optimize-needed and default parameters for each individual to become its genes
         self.genes = copy_string_array(OPTIMIZED_PARAMETERS_DATA)
@@ -48,51 +64,52 @@ class Individual(object):
         self.ORDER_DELETED_DICT = {}
         
     #===============================================================================
-    def create_random_genes(self):
-        # reset genes randomly for each individual
-        row = DEFAULT_NUMBER
+    def create_a_set_of_genes(self):
+        # reset genes for each individual
+        row = DEFAULT_NUMBER_INT
         col = 1
         
-        # --> FilterSpread ==> random 1 or 0
-        self.genes[row][col] = random.randint(DEFAULT_NUMBER, sys.maxint) % 2  
+        # --> FilterSpread ==> pickup value 1 or 0
+        self.genes[row][col] = random.randint(DEFAULT_NUMBER_INT, sys.maxint) % 2  
         row += 1
-        # --> Friday ==> random 1 or 0
-        self.genes[row][col] = random.randint(DEFAULT_NUMBER, sys.maxint) % 2  
+        # --> Friday ==> pickup value  1 or 0
+        self.genes[row][col] = random.randint(DEFAULT_NUMBER_INT, sys.maxint) % 2  
         row += 1
-        # --> OpenOrdersLimitDay ==> random 1 to 3
-        self.genes[row][col] = random.randint(DEFAULT_NUMBER + 1, int(self.genes[row][col]))  
+        # --> OpenOrdersLimitDay ==> pickup value 1 to 3
+        self.genes[row][col] = random.randint(DEFAULT_NUMBER_INT + 1, int(self.genes[row][col]))  
         row += 1
-        # --> Time_closing_trades ==> random 1 or 0
-        self.genes[row][col] = random.randint(DEFAULT_NUMBER, sys.maxint) % 2  
-        # --> only change value of Time_of_closing_in_hours ==> random 5 or 6 when Time_closing_trades==True
+        # --> Time_closing_trades ==> pickup value 1 or 0
+        self.genes[row][col] = random.randint(DEFAULT_NUMBER_INT, sys.maxint) % 2  
+        # --> only change value of Time_of_closing_in_hours ==> pickup value 5 or 6 when Time_closing_trades==True
         if self.genes[row][col] == '1':
             row += 1
             self.genes[row][col] = random.randint(int(self.genes[row][col]), int(self.genes[row][col]) + 1) 
         else:
             row += 2
-        # --> Profit_all_orders ==> random 1 to 12 0
-        self.genes[row][col] = random.randint(DEFAULT_NUMBER + 1, int(self.genes[row][col]))  
+        # --> Profit_all_orders ==> pickup value 1 to 12 0
+        self.genes[row][col] = random.randint(DEFAULT_NUMBER_INT + 1, int(self.genes[row][col]))  
         row += 1
-        # --> Arrangements_of_trades ==> random 1 or 25
-        random_num = random.randint(DEFAULT_NUMBER + 1, abs(int(self.genes[row][col])))
+        # --> Arrangements_of_trades ==> pickup value 1 or 25
+        random_num = random.randint(DEFAULT_NUMBER_INT + 1, abs(int(self.genes[row][col])))
         self.genes[row][col] = random_num * (-1)  
         row += 1
-        # --> Lots ==> random 0.01 to 0.1
+        # --> Lots ==> pickup value 0.01 to 0.1
         random_num = random.uniform(float(self.genes[row][col]), MAX_LOTS)
         self.genes[row][col] = round(random_num, 2)  
-        
         
         # create the whole completed parameters for running EA
         self.genes_completed = merge_2parametes_array_data(self.genes_completed, self.genes)
     
     #===============================================================================
+
     '''
     manual_parameters_list = ['FilterSpread', 'Friday', 'OpenOrdersLimitDay', 'Time_closing_trades', 'Time_of_closing_in_hours',
                        'Profit_all_orders', 'Arrangements_of_trades', 'Lots']
     '''
-    def create_manual_genes(self, manual_parameters_list):
+
+    def create_a_fixed_set_genes(self, manual_parameters_list):
         # reset genes randomly for each individual
-        row = DEFAULT_NUMBER
+        row = DEFAULT_NUMBER_INT
         col = 1
         
         # --> FilterSpread
@@ -119,7 +136,6 @@ class Individual(object):
         # --> Lots
         self.genes[row][col] = manual_parameters_list[row]   
     
-    
         # create the whole completed parameters for running EA
         self.genes_completed = merge_2parametes_array_data(self.genes_completed, self.genes)
     
@@ -132,7 +148,7 @@ class Individual(object):
         
         # keep create an individual while the ID is not unique
         while (new_id in dictionary_IDlist == True):
-            self.create_random_genes()
+            self.create_a_set_of_genes()
             new_id = '_' . join([str(row[col_index_value]) for row in self.genes])
         
         # assign the new ID to an individual
@@ -143,27 +159,27 @@ class Individual(object):
     #===============================================================================
     def flip_value(self, mutation_point):
         
-        key_col_index = DEFAULT_NUMBER
+        key_col_index = DEFAULT_NUMBER_INT
          
         # Flip values at the mutation point
         # --> FilterSpread=true (default) ==> 1/0
         if self.genes[mutation_point][key_col_index] == OPTIMIZED_PARAMETERS_DATA[mutation_point][key_col_index]:
-            if self.genes[mutation_point][VALUE_COL_INDEX] == str(DEFAULT_SECOND_NUMBER):
-                self.genes[mutation_point][VALUE_COL_INDEX] = str(DEFAULT_NUMBER)
+            if self.genes[mutation_point][VALUE_COL_INDEX] == str(DEFAULT_SECOND_NUMBER_INT):
+                self.genes[mutation_point][VALUE_COL_INDEX] = str(DEFAULT_NUMBER_INT)
             else:
-                self.genes[mutation_point][VALUE_COL_INDEX] = str(DEFAULT_NUMBER)
+                self.genes[mutation_point][VALUE_COL_INDEX] = str(DEFAULT_NUMBER_INT)
          
         # --> Friday=true (default) ==> 1/0
         elif self.genes[mutation_point][key_col_index] == OPTIMIZED_PARAMETERS_DATA[mutation_point][key_col_index]:
-            if self.genes[mutation_point][VALUE_COL_INDEX] == str(DEFAULT_SECOND_NUMBER):
-                self.genes[mutation_point][VALUE_COL_INDEX] = str(DEFAULT_NUMBER)
+            if self.genes[mutation_point][VALUE_COL_INDEX] == str(DEFAULT_SECOND_NUMBER_INT):
+                self.genes[mutation_point][VALUE_COL_INDEX] = str(DEFAULT_NUMBER_INT)
             else:
-                self.genes[mutation_point][VALUE_COL_INDEX] = str(DEFAULT_SECOND_NUMBER)
+                self.genes[mutation_point][VALUE_COL_INDEX] = str(DEFAULT_SECOND_NUMBER_INT)
          
         # --> OpenOrdersLimitDay ==> 1 to 3
         elif self.genes[mutation_point][key_col_index] == OPTIMIZED_PARAMETERS_DATA[mutation_point][key_col_index]:
             if self.genes[mutation_point][VALUE_COL_INDEX] == OPTIMIZED_PARAMETERS_DATA[mutation_point][VALUE_COL_INDEX]:
-                self.genes[mutation_point][VALUE_COL_INDEX] = random.randint(DEFAULT_NUMBER + 1,
+                self.genes[mutation_point][VALUE_COL_INDEX] = random.randint(DEFAULT_NUMBER_INT + 1,
                                                                              int(OPTIMIZED_PARAMETERS_DATA[mutation_point][VALUE_COL_INDEX]) - 1)
             else:
                 self.genes[mutation_point][VALUE_COL_INDEX] = OPTIMIZED_PARAMETERS_DATA[mutation_point][VALUE_COL_INDEX]
@@ -171,10 +187,10 @@ class Individual(object):
         # --> Time_closing_trades=false ==> 1/0
         # Check the special variable of Time_of_closing_in_hours 
         elif self.genes[mutation_point][key_col_index] == OPTIMIZED_PARAMETERS_DATA[mutation_point][key_col_index]:
-            if self.genes[mutation_point][VALUE_COL_INDEX] == str(DEFAULT_NUMBER):
-                self.genes[mutation_point][VALUE_COL_INDEX] = str(DEFAULT_SECOND_NUMBER)
+            if self.genes[mutation_point][VALUE_COL_INDEX] == str(DEFAULT_NUMBER_INT):
+                self.genes[mutation_point][VALUE_COL_INDEX] = str(DEFAULT_SECOND_NUMBER_INT)
                 
-                # --> only change value of Time_of_closing_in_hours ==> random 5 or 6 when Time_closing_trades==True/1
+                # --> only change value of Time_of_closing_in_hours ==> pickup value 5 or 6 when Time_closing_trades==True/1
                 self.genes[mutation_point + 1][VALUE_COL_INDEX] = random.randint(5, 6) 
                 
                 if self.genes[mutation_point + 1][VALUE_COL_INDEX] == '5':
@@ -184,12 +200,12 @@ class Individual(object):
                     self.genes[mutation_point + 1][VALUE_COL_INDEX] = random.randint(int(self.genes[mutation_point + 1][VALUE_COL_INDEX] - 1),
                                                                                      int(self.genes[mutation_point + 1][VALUE_COL_INDEX]))
             else:
-                self.genes[mutation_point][VALUE_COL_INDEX] = str(DEFAULT_NUMBER)
+                self.genes[mutation_point][VALUE_COL_INDEX] = str(DEFAULT_NUMBER_INT)
     
         # --> Profit_all_orders ==> 1 to 12
         elif self.genes[mutation_point][key_col_index] == OPTIMIZED_PARAMETERS_DATA[mutation_point][key_col_index]:
             if self.genes[mutation_point][VALUE_COL_INDEX] == OPTIMIZED_PARAMETERS_DATA[mutation_point][VALUE_COL_INDEX]:
-                self.genes[mutation_point][VALUE_COL_INDEX] = random.randint(DEFAULT_NUMBER + 1,
+                self.genes[mutation_point][VALUE_COL_INDEX] = random.randint(DEFAULT_NUMBER_INT + 1,
                                                                              int(OPTIMIZED_PARAMETERS_DATA[mutation_point][VALUE_COL_INDEX]) - 1)
             else:
                 self.genes[mutation_point][VALUE_COL_INDEX] = OPTIMIZED_PARAMETERS_DATA[mutation_point][VALUE_COL_INDEX]
@@ -198,7 +214,7 @@ class Individual(object):
         elif self.genes[mutation_point][key_col_index] == OPTIMIZED_PARAMETERS_DATA[mutation_point][key_col_index]:
             if self.genes[mutation_point][VALUE_COL_INDEX] == OPTIMIZED_PARAMETERS_DATA[mutation_point][VALUE_COL_INDEX]:
                 self.genes[mutation_point][VALUE_COL_INDEX] = random.randint(int(OPTIMIZED_PARAMETERS_DATA[mutation_point][VALUE_COL_INDEX]) + 1,
-                                                                             DEFAULT_NUMBER - 1)
+                                                                             DEFAULT_NUMBER_INT - 1)
             else:
                 self.genes[mutation_point][VALUE_COL_INDEX] = OPTIMIZED_PARAMETERS_DATA[mutation_point][VALUE_COL_INDEX]
     
@@ -209,7 +225,6 @@ class Individual(object):
                                                                              MAX_LOTS)
             else:
                 self.genes[mutation_point][VALUE_COL_INDEX] = OPTIMIZED_PARAMETERS_DATA[mutation_point][VALUE_COL_INDEX]
-    
     
         # create the whole completed parameters for running EA
         self.genes_completed = merge_2parametes_array_data(self.genes_completed, self.genes)
@@ -222,6 +237,7 @@ class Population(object):
     '''
     classdocs
     '''
+
     #===============================================================================
     def __init__(self):
         '''
@@ -237,13 +253,11 @@ class Population(object):
 #         letters = digits = len(OPTIMIZE_PARAMETERS_LIST) - 1  
 #         self.popSize = permutation_count(letters, digits)
 
-        self.fittest = DEFAULT_NUMBER
+        self.fittest = DEFAULT_NUMBER_INT
         self.individuals = [Individual()] * self.popSize
         self.individuals_ID_dict = {}  # a dictionary (as a hash-map) for storing ID
+        self.FITNESS_DICT = {}  # a dictionary for storing fitness of all individuals
  
-        # create dictionaries for storing orders pools and dates 
-        self.DATE_DATA_DICT = {} 
-        
         # create an instance of EA for running 
         self.happyforex_EA_instance = HappyForexEA()
         
@@ -253,7 +267,7 @@ class Population(object):
         for i in range(self.popSize):
             # create the individual with its attributes
             an_individual = Individual()
-            an_individual.create_random_genes()
+            an_individual.create_a_set_of_genes()
             new_id = an_individual.create_ind_uniqueID(self.individuals_ID_dict)
 
             # assign the individual with unique ID into population
@@ -267,7 +281,7 @@ class Population(object):
     # Get the highest fitness individual
     def get_fittest(self):
         max_fit = -sys.maxint - 1
-        max_fit_index = DEFAULT_NUMBER
+        max_fit_index = DEFAULT_NUMBER_INT
         
         for i in range(len(self.individuals)):
             if max_fit <= self.individuals[i].fitness:
@@ -289,7 +303,7 @@ class Population(object):
     #===============================================================================
     # Get the second most highest fitness individual
     def get_second_fittest(self):
-        max_fit_1 = max_fit_2 = DEFAULT_NUMBER
+        max_fit_1 = max_fit_2 = DEFAULT_NUMBER_INT
         
         for i in range(len(self.individuals)):
             if self.individuals[i].fitness > self.individuals[max_fit_1].fitness:
@@ -312,7 +326,7 @@ class Population(object):
     # Get index of the least fitness individual
     def get_least_fittest(self):
         min_fitness = sys.maxint
-        min_fitness_index = DEFAULT_NUMBER
+        min_fitness_index = DEFAULT_NUMBER_INT
         
         for i in range(len(self.individuals)):
             if min_fitness >= self.individuals[i].fitness:
@@ -341,22 +355,30 @@ class Population(object):
                                  + total_win / MAX_WIN_TOTAL_TRADE), 2)
         '''
         
-        Individual.fitness = DEFAULT_NUMBER
-        self.happyforex_EA_instance.reset()
+        time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+        log.info("==>  Start calculating fitness for individual {0}...".format(Individual.individual_ID))
+        print("{0} ==>  Start calculating fitness for individual {1}...".format(time_stamp, Individual.individual_ID))
+        
+        Individual.fitness = DEFAULT_NUMBER_INT
         
         # run the EA logic to return the profit
-        Individual.net_profit = self.happyforex_EA_instance.run(Individual.genes_completed)
+        Individual.net_profit = self.happyforex_EA_instance.run(Individual.genes_completed, Individual.individual_ID)
+#         Individual.net_profit = self.happyforex_EA_instance.run_testing()
         Individual.ORDER_CLOSED_DICT = self.happyforex_EA_instance.ORDER_CLOSED_DICT
         Individual.ORDER_OPENED_DICT = self.happyforex_EA_instance.ORDER_OPENED_DICT
         Individual.ORDER_DELETED_DICT = self.happyforex_EA_instance.ORDER_DELETED_DICT
         
-        self.DATE_DATA_DICT = self.happyforex_EA_instance.DATE_DATA_DICT
+        # save profit to dictionary
+        self.FITNESS_DICT[str(Individual.individual_ID) + '_origin'] = round(Individual.net_profit, 2)
         
         # calculate fitness for the HappyForex EA
         if Individual.net_profit > NET_PROFIT:
-            Individual.net_profit = MAX_FITNESS
+            Individual.fitness = MAX_FITNESS
         else:
-            Individual.fitness = round(100 * abs(Individual.net_profit) / NET_PROFIT, 2)
+            if Individual.net_profit <= DEFAULT_NUMBER_FLOAT:
+                Individual.fitness = DEFAULT_NUMBER_FLOAT
+            else:
+                Individual.fitness = round(100 * Individual.net_profit / NET_PROFIT, 2)
             
         return Individual
             
@@ -364,14 +386,14 @@ class Population(object):
     # Calculate the fitness of each individual
     def calculate_fittest(self):
         
-        ''' MONOTHREADING '''
+        ''' MONOTHREADING
         for ind_ in self.individuals:
             ind_ = self.cal_fitness(ind_)
-        
+        MONOTHREADING '''
 
-        ''' MULTITHREADING
+        ''' MULTITHREADING '''
         # make the Pool of workers
-        ea_pool = ThreadPool(8)
+        ea_pool = ThreadPool(4)
          
         # and return the all_fitness_results
 #         individuals_w_fitness = ea_pool.map(self.cal_fitness, self.individuals)
@@ -384,8 +406,7 @@ class Population(object):
         # close the pool and wait for the work to finish 
         ea_pool.close() 
 #         ea_pool.join() 
-        MULTITHREADING '''
-        
+        ''' MULTITHREADING '''
         
     #===============================================================================
     
@@ -402,7 +423,7 @@ class HappyForexGenericAlgorithm(object):
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         
-        self.generationCount = DEFAULT_NUMBER
+        self.generationCount = DEFAULT_NUMBER_INT
         self.population = Population()
         self.fittest_ind = Individual()
         self.second_fittest_ind = Individual()
@@ -418,17 +439,16 @@ class HappyForexGenericAlgorithm(object):
         # Select the second most highest fitness individual
         self.second_fittest_ind = self.population.get_second_fittest()
         
-        
     #===============================================================================
     # Crossover
     def crossover(self):
-        # Select a random crossover point, from 0 to 6 (make sure less than the length of OPTIMIZE_PARAMETERS_LIST)
-        cross_over_point = random.randint(DEFAULT_NUMBER, len(OPTIMIZE_PARAMETERS_LIST) - 2);
+        # Select a crossover point, from 0 to 6 (make sure less than the length of OPTIMIZE_PARAMETERS_LIST)
+        cross_over_point = random.randint(DEFAULT_NUMBER_INT, len(OPTIMIZE_PARAMETERS_LIST) - 2);
         print("cross_over_point: %s" % cross_over_point)
         log.info("cross_over_point: %s" % cross_over_point)
         
         # Swap values among parents
-        i = DEFAULT_NUMBER
+        i = DEFAULT_NUMBER_INT
         while i <= cross_over_point:
             temp = self.fittest_ind.genes[i]
             self.fittest_ind.genes[i] = self.second_fittest_ind.genes[i]
@@ -436,7 +456,7 @@ class HappyForexGenericAlgorithm(object):
             i += 1
         
         # Check the special variable of Time_of_closing_in_hours 
-        # --> only change value of Time_of_closing_in_hours ==> random 5 or 6 when Time_closing_trades==True/1
+        # --> only change value of Time_of_closing_in_hours ==> pickup value 5 or 6 when Time_closing_trades==True/1
         row_time_closing_index = 3
         row_time_of_closing_inhour_index = 4
         
@@ -464,19 +484,17 @@ class HappyForexGenericAlgorithm(object):
         new_id_second_fittest = '_' . join([str(row[VALUE_COL_INDEX]) for row in self.second_fittest_ind.genes])
         self.second_fittest_ind.individual_ID = new_id_second_fittest
         
-        
         # create the whole completed parameters for running EA
         self.fittest_ind.genes_completed = merge_2parametes_array_data(self.fittest_ind.genes_completed, self.fittest_ind.genes)
         self.second_fittest_ind.genes_completed = merge_2parametes_array_data(self.second_fittest_ind.genes_completed, self.second_fittest_ind.genes)
-    
 
     #===============================================================================
     # Mutation
     def mutation(self):
         row_Time_of_closing_in_hours = 4
         
-        # Select a random mutation point for fittest_ind  from 0 to 7 (less than the length of OPTIMIZE_PARAMETERS_LIST)
-        mutation_point_fittest = random.randint(DEFAULT_NUMBER, len(OPTIMIZE_PARAMETERS_LIST) - 1);
+        # Select a mutation point for fittest_ind  from 0 to 7 (less than the length of OPTIMIZE_PARAMETERS_LIST)
+        mutation_point_fittest = random.randint(DEFAULT_NUMBER_INT, len(OPTIMIZE_PARAMETERS_LIST) - 1);
         
         # Change Time_of_closing_in_hours row into Time_closing_trades row for satisfying the condition of Time_closing_trades row 
         if mutation_point_fittest == row_Time_of_closing_in_hours:
@@ -492,8 +510,8 @@ class HappyForexGenericAlgorithm(object):
         
         # keep create an individual while the ID is not unique
         while (id_fittest in self.population.individuals_ID_dict == True):
-            # Select a random mutation point from 0 to 7 (less than the length of OPTIMIZE_PARAMETERS_LIST)
-            mutation_point_fittest = random.randint(DEFAULT_NUMBER, len(OPTIMIZE_PARAMETERS_LIST) - 1);
+            # Select a mutation point from 0 to 7 (less than the length of OPTIMIZE_PARAMETERS_LIST)
+            mutation_point_fittest = random.randint(DEFAULT_NUMBER_INT, len(OPTIMIZE_PARAMETERS_LIST) - 1);
             
             # Change Time_of_closing_in_hours row into Time_closing_trades row for satisfying the condition of Time_closing_trades row 
             if mutation_point_fittest == row_Time_of_closing_in_hours:
@@ -508,10 +526,9 @@ class HappyForexGenericAlgorithm(object):
         
         # update individual ID
         self.fittest_ind.individual_ID = id_fittest
-    
         
-        # Select a random mutation point for second_fittest_ind from 0 to 7 (less than the length of OPTIMIZE_PARAMETERS_LIST)
-        mutation_point_second_fittest = random.randint(DEFAULT_NUMBER, len(OPTIMIZE_PARAMETERS_LIST) - 1);
+        # Select a mutation point for second_fittest_ind from 0 to 7 (less than the length of OPTIMIZE_PARAMETERS_LIST)
+        mutation_point_second_fittest = random.randint(DEFAULT_NUMBER_INT, len(OPTIMIZE_PARAMETERS_LIST) - 1);
         
         # Change Time_of_closing_in_hours row into Time_closing_trades row for satisfying the condition of Time_closing_trades row 
         if mutation_point_second_fittest == row_Time_of_closing_in_hours:
@@ -527,8 +544,8 @@ class HappyForexGenericAlgorithm(object):
         
         # keep create an individual while the ID is not unique
         while (id_second_fittest in self.population.individuals_ID_dict == True):
-            # Select a random mutation point from 0 to 7 (less than the length of OPTIMIZE_PARAMETERS_LIST)
-            mutation_point_second_fittest = random.randint(DEFAULT_NUMBER, len(OPTIMIZE_PARAMETERS_LIST) - 1);
+            # Select a mutation point from 0 to 7 (less than the length of OPTIMIZE_PARAMETERS_LIST)
+            mutation_point_second_fittest = random.randint(DEFAULT_NUMBER_INT, len(OPTIMIZE_PARAMETERS_LIST) - 1);
             
             # Change Time_of_closing_in_hours row into Time_closing_trades row for satisfying the condition of Time_closing_trades row 
             if mutation_point_second_fittest == row_Time_of_closing_in_hours:
@@ -541,10 +558,8 @@ class HappyForexGenericAlgorithm(object):
             
             id_second_fittest = '_' . join([str(row[VALUE_COL_INDEX]) for row in self.second_fittest_ind.genes])
         
-        
         # update individual ID
         self.second_fittest_ind.individual_ID = id_second_fittest
-        
         
     #===============================================================================
     # Get the highest fitness offspring
@@ -563,14 +578,14 @@ class HappyForexGenericAlgorithm(object):
         self.second_fittest_ind.genes_completed = merge_2parametes_array_data(self.second_fittest_ind.genes_completed,
                                                                        self.second_fittest_ind.genes)
         
-        ''' MONOTHREADING '''
+        ''' MONOTHREADING
         self.fittest_ind = self.population.cal_fitness(self.fittest_ind)
         self.second_fittest_ind = self.population.cal_fitness(self.second_fittest_ind)
+        '''
         
-        
-        ''' MULTITHREADING 
+        ''' MULTITHREADING ''' 
         # make the Pool of workers
-        ea_pool = ThreadPool(8)
+        ea_pool = ThreadPool(4)
          
         # --> and return the all_fitness_results
 #         fittest_inds_w_fitness = ea_pool.map(self.population.cal_fitness, [self.fittest_ind, self.second_fittest_ind])
@@ -579,20 +594,21 @@ class HappyForexGenericAlgorithm(object):
         results = [ea_pool.apply_async(self.population.cal_fitness, (ind_,)) for ind_ in [self.fittest_ind, self.second_fittest_ind]]
         fittest_inds_w_fitness = [r.get() for r in results]  
          
-        self.fittest_ind = fittest_inds_w_fitness[DEFAULT_NUMBER]
-        self.second_fittest_ind = fittest_inds_w_fitness[DEFAULT_SECOND_NUMBER]
+        self.fittest_ind = fittest_inds_w_fitness[DEFAULT_NUMBER_INT]
+        self.second_fittest_ind = fittest_inds_w_fitness[DEFAULT_SECOND_NUMBER_INT]
          
         # --> close the pool and wait for the work to finish 
         ea_pool.close() 
 #         ea_pool.join() 
-        MULTITHREADING '''
         
-        
-        # Get index of least fit individual
+        # Get index of least fit individual to retrieve that individual
         least_fittest_index = self.population.get_least_fittest()
-        
-        # Retrieve the least fitness and the highest fitness offspring
         self.least_fittest_ind = self.population.individuals[least_fittest_index]
+        
+        # save profit to dictionary
+        self.population.FITNESS_DICT[str(self.added_offstring_ind.individual_ID) + '_eliminated'] = round(self.added_offstring_ind.net_profit, 2)
+        
+        # Retrieve the highest fitness offspring
         self.added_offstring_ind = self.get_fittest_offspring()
        
         # Replace least fitness individual by the highest fitness offspring
@@ -602,4 +618,200 @@ class HappyForexGenericAlgorithm(object):
         value_least_fittest_ind = self.population.individuals_ID_dict[self.least_fittest_ind.individual_ID]
         del self.population.individuals_ID_dict[self.least_fittest_ind.individual_ID]
         self.population.individuals_ID_dict[self.added_offstring_ind.individual_ID] = value_least_fittest_ind
+
+        # save profit to dictionary
+        self.population.FITNESS_DICT[str(self.added_offstring_ind.individual_ID) + '_added'] = round(self.added_offstring_ind.net_profit, 2)
+        
+################################################################################
+################################           FUNCTIONS           ##################################
+################################################################################
+
+
+#===============================================================================
+def ga_run():
+    # Create an instance for HappyForexGenericAlgorithm to run the program
+    happyforexGA = HappyForexGenericAlgorithm()
+    
+    # Create an folder for storing all outputs in this section 
+    folder_output = FOLDER_DATA_OUTPUT + SYMBOL + '_optimization_output/'
+    if os.path.exists(folder_output):
+        shutil.rmtree(folder_output)
+    os.makedirs(folder_output)
+    
+    # Initialize population
+    log.info('#============================== Initialize population ==============================')
+    time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+    print('#============================== %s Initialize population ==============================' % time_stamp)
+    happyforexGA.population.initialize_population()
+    
+    log.info('==> population size: %s' % happyforexGA.population.popSize)
+    time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+    print('%s ==> population size: %s' % (time_stamp, happyforexGA.population.popSize))
+    
+    log.info('#============================================================')
+    log.info('==> first individual genes and genes_completed:')
+    print('#============================================================')
+    time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+    print('%s ==> first individual genes and genes_completed:' % time_stamp)
+    display_an_array_with_delimiter(happyforexGA.population.individuals[DEFAULT_NUMBER_INT].genes_completed, '=')
+    display_an_array_with_delimiter(happyforexGA.population.individuals[DEFAULT_NUMBER_INT].genes, '=')
+    
+    # Write the individual_ID_list to a CSV file for reference
+    log.info('#============================== Write the individual_ID_list to a CSV file ==============================')
+    time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+    print('#============================== %s Write the individual_ID_list to a CSV file ==============================' % time_stamp)
+    write_wholedict2csv_no_header(happyforexGA.population.individuals_ID_dict, folder_output + FILENAME_POPULATION_INITIAL)
+     
+    # Calculate fitness of each individual
+    log.info('#============================== Calculate fitness of each individual ==============================')
+    time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+    print('#============================== %s Calculate fitness of each individual ==============================' % time_stamp)
+    happyforexGA.population.calculate_fittest()
+
+    # Get the individual with highest fitness ==> retrieve the highest fitness for the population
+    log.info('#============================== Get the individual with highest fitness ==============================')
+    time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+    print('#============================== %s Get the individual with highest fitness ==============================' % time_stamp)
+    happyforexGA.fittest_ind = happyforexGA.population.get_fittest()
+           
+    log.info('#============================== Population gets an individual with maximum fitness ==============================')
+    time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+    print('#============================== %s Population gets an individual with maximum fitness ==============================' % time_stamp)
+    # While population gets an individual with maximum fitness or the population has converged (does not produce different offspring)
+    while (happyforexGA.population.fittest < MAX_FITNESS 
+            and happyforexGA.generationCount < happyforexGA.population.popSize * 2):  # TODO: for testing only
+        
+        happyforexGA.generationCount += 1
+           
+        # Do selection
+        log.info('#============================== population selection ==============================')
+        time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+        print('#============================== %s population selection ==============================' % time_stamp)
+        happyforexGA.selection()
+        
+        print("==> self.fittest_ind.individual_ID at selection: %s" % happyforexGA.fittest_ind.individual_ID)
+        print("==> self.second_fittest_ind.individual_ID at selection: %s" % happyforexGA.second_fittest_ind.individual_ID)
+        log.info("==> self.fittest_ind.individual_ID at selection: %s" % happyforexGA.fittest_ind.individual_ID)
+        log.info("==> self.second_fittest_ind.individual_ID at selection: %s" % happyforexGA.second_fittest_ind.individual_ID)
+           
+        # Do crossover
+        log.info('#============================== population crossover ==============================')
+        time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+        print('#============================== %s population crossover ==============================' % time_stamp)
+        happyforexGA.crossover()
+        
+        print("==> self.fittest_ind.individual_ID after crossover: %s" % happyforexGA.fittest_ind.individual_ID)
+        print("==> self.second_fittest_ind.individual_ID after crossover: %s" % happyforexGA.second_fittest_ind.individual_ID)
+        log.info("==> self.fittest_ind.individual_ID after crossover: %s" % happyforexGA.fittest_ind.individual_ID)
+        log.info("==> self.second_fittest_ind.individual_ID after crossover: %s" % happyforexGA.second_fittest_ind.individual_ID)
+           
+        # Do mutation under probability
+        if random.randint(DEFAULT_NUMBER_INT, MAX_FITNESS) < MAX_FITNESS:
+            
+            log.info('#============================== population mutation ==============================')
+            time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+            print('#============================== %s population mutation ==============================' % time_stamp)
+            happyforexGA.mutation()
+            
+            print("==> self.fittest_ind.individual_ID after mutation: %s" % happyforexGA.fittest_ind.individual_ID)
+            print("==> self.second_fittest_ind.individual_ID after mutation: %s" % happyforexGA.second_fittest_ind.individual_ID)
+            log.info("==> self.fittest_ind.individual_ID after mutation: %s" % happyforexGA.fittest_ind.individual_ID)
+            log.info("==> self.second_fittest_ind.individual_ID after mutation: %s" % happyforexGA.second_fittest_ind.individual_ID)
+                   
+        # Add highest fitness offspring to population
+        time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+        happyforexGA.add_fittest_offspring()
+        print("==> Least_fittest_ind.individual_ID: %s" % happyforexGA.least_fittest_ind.individual_ID)
+        print("... ==> least_fittest_ind.fitness: %s" % happyforexGA.least_fittest_ind.fitness)                   
+        print("... replace by highest fitness offspring individual ==> added_offstring_ind.individual_ID: %s" % happyforexGA.added_offstring_ind.individual_ID)
+        print("... ==> added_offstring_ind.fitness: %s" % happyforexGA.added_offstring_ind.fitness)                   
+        log.info("==> Least_fittest_ind.individual_ID: %s" % happyforexGA.least_fittest_ind.individual_ID)
+        log.info("... ==> least_fittest_ind.fitness: %s" % happyforexGA.least_fittest_ind.fitness)                   
+        log.info("... replace by highest fitness offspring individual ==> added_offstring_ind.individual_ID: %s" % happyforexGA.added_offstring_ind.individual_ID)
+        log.info("... ==> added_offstring_ind.fitness: %s" % happyforexGA.added_offstring_ind.fitness)                   
+        
+#             # Calculate new fitness value
+#             happyforexGA.population.calculate_fittest()
+         
+        # Get the new individual with highest fitness ==> retrieve the highest fitness for the population
+        happyforexGA.fittest_ind = happyforexGA.population.get_fittest()
+        
+        # Print out and write to CSV file the highest solution + remove the old highest solution file
+        log.info("Generation: %s - Highest Fitness: %s" % (happyforexGA.generationCount, happyforexGA.population.fittest))
+        time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+        print("%s Generation: %s - Highest Fitness: %s" % (time_stamp, happyforexGA.generationCount, happyforexGA.population.fittest))
+        
+        if happyforexGA.fittest_ind.fitness < MAX_FITNESS:
+            time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+            file_path_highest_solution = folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + SYMBOL + FILENAME_HIGHEST_FITNESS
+            file_path_highest_parameters = folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + SYMBOL + FILENAME_HIGHEST_PARAMETERS
+        
+            write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes, file_path_highest_solution, '=')
+            write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes_completed, file_path_highest_parameters, '=')
+            write_wholedict2csv_no_header(happyforexGA.fittest_ind.ORDER_CLOSED_DICT, folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + FILENAME_ORDER_CLOSED_HISTORY)
+            write_wholedict2csv_no_header(happyforexGA.fittest_ind.ORDER_DELETED_DICT, folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + FILENAME_ORDER_DELETED_HISTORY)
+        
+        write_wholedict2csv_no_header(happyforexGA.population.FITNESS_DICT, folder_output + 'profit_list.csv')
+        
+        print('#===========================================================================')
+        log.info('#===========================================================================')
+        
+    # Print out and write to CSV file the best solution
+    log.info('#===========================================================================')
+    log.info("==> Solution found in generation: %s" % happyforexGA.generationCount);
+    log.info("Fitness: %s" % happyforexGA.fittest_ind.fitness);
+    log.info("Individual_ID: %s" % happyforexGA.fittest_ind.individual_ID)
+    log.info("Genes: %s" % happyforexGA.fittest_ind.genes);
+    time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+    print('#===========================================================================')
+    print("%s ==> Solution found in generation: %s" % (time_stamp, happyforexGA.generationCount))
+    print("Fitness: %s" % happyforexGA.fittest_ind.fitness);
+    print("Individual_ID: %s" % happyforexGA.fittest_ind.individual_ID)
+    print("Genes: %s" % happyforexGA.fittest_ind.genes);
+    
+    # Write out the whole best parameters
+    time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+    write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes, folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + SYMBOL + FILENAME_BEST_SOLUTION, '=')
+    write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes_completed, folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + SYMBOL + FILENAME_BEST_PARAMETERS, '=')
+    
+    write_wholedict2csv_no_header(happyforexGA.fittest_ind.ORDER_CLOSED_DICT, folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + FILENAME_ORDER_CLOSED_HISTORY)
+    write_wholedict2csv_no_header(happyforexGA.fittest_ind.ORDER_DELETED_DICT, folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + FILENAME_ORDER_DELETED_HISTORY)
+        
+    # Write the population final to a CSV file for reference
+    time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+    log.info('#============================== Write the population final to a CSV file ==============================')
+    print('#============================== %s Write the population final to a CSV file ==============================' % time_stamp)
+    write_wholedict2csv_no_header(happyforexGA.population.individuals_ID_dict,
+                             folder_output + FILENAME_POPULATION_FINAL.replace(".csv", "_" + str(happyforexGA.generationCount) + "th_gen.csv"))
+
+################################################################################
+##########################           MAIN           ############################
+################################################################################        
+
+
+#============================================================
+if __name__ == '__main__': 
+
+    ga_run()
+    
+#     # If applicable, delete the existing log file to generate a fresh log file during each execution
+#     if path.isfile(FOLDER_DATA_OUTPUT + FILENAME_LOG_BACKTEST):
+#         remove(FOLDER_DATA_OUTPUT + FILENAME_LOG_BACKTEST)
+#         
+#     handler = logging.handlers.WatchedFileHandler(os.environ.get("LOGFILE", FOLDER_DATA_OUTPUT + FILENAME_LOG_BACKTEST))
+#     
+#     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+#     handler.setFormatter(formatter)
+#     
+#     root = logging.getLogger()
+#     root.setLevel(os.environ.get("LOGLEVEL", "INFO"))
+#     root.addHandler(handler)
+#     
+#     try:
+#         # running ST
+#         cProfile.run('ga_run()', FOLDER_DATA_OUTPUT + FILENAME_PROFILE_BACKTEST)
+#         
+#     except Exception:
+#         logging.exception("Exception in main")
+#         exit(1) 
 

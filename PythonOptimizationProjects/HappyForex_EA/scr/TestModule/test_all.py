@@ -7,8 +7,8 @@ import unittest
 import os
 import pandas as pd
 
-from EAModule.happyforex_EA import HappyForexEA
-from DataHandler.hardcoded_data import DEFAULT_NUMBER, DEFAULT_SECOND_NUMBER, \
+from StrategyTesterModule.happyforex_ST import HappyForexEA
+from DataHandler.hardcoded_data import DEFAULT_NUMBER_INT, DEFAULT_SECOND_NUMBER_INT, \
     OP_BUY, OP_BUYLIMIT, MARKET_TIME_STANDARD, DATETIME_FORMAT, LOTS_COL_INDEX, \
     DATETIME_COL_INDEX, OP_SELL, PROFIT_COL_INDEX, ORDER_TYPE_COL_INDEX, \
     convert_backflash2forwardflash, number_after_decimal, display_an_dict_with_delimiter, float_checker, \
@@ -16,13 +16,13 @@ from DataHandler.hardcoded_data import DEFAULT_NUMBER, DEFAULT_SECOND_NUMBER, \
     write_array2csv_with_delimiter_no_header, copy_string_array, \
     permutation_count, combination_count, display_an_array_with_delimiter, \
     merge_2parametes_array_data, point_of_symbol, digit_of_symbol, \
-    is_time_earlier, convert_string_datetime2float, convert_string_day2float, \
-    convert_string_millisecond2float, write_value_of_dict2csv_no_header
-    
+    is_time_earlier, convert_string_datetime2float_no_ms, convert_string_day2float, \
+    convert_string_millisecond2float, write_value_of_dict2csv_no_header, \
+    convert_string_second2float 
 
 happyforex_EA_instance = HappyForexEA()
 
-# class TestHappyForexGA(unittest.TestCase):
+# class TestHappyForex_GA(unittest.TestCase):
 # 
 # 
 #         #===========================================================================
@@ -47,7 +47,7 @@ happyforex_EA_instance = HappyForexEA()
 #             individual.create_uniqueID(dictionary_IDlist)
 #              
 #             flag_individualID = False
-#             if individual.individual_ID != DEFAULT_NUMBER:
+#             if individual.individual_ID != DEFAULT_NUMBER_INT:
 #                 flag_individualID = True
 #              
 #             self.assertTrue(flag_individualID, "CANNOT create an individual.")
@@ -84,7 +84,7 @@ happyforex_EA_instance = HappyForexEA()
 #             display_an_array_with_delimiter(individual.genes, '=')
 #               
 #             # testing
-#             count = DEFAULT_NUMBER
+#             count = DEFAULT_NUMBER_INT
 #             flag_item = False
 #             for item in manual_parameters_list:
 #                 if item[count] == individual.genes[count][1]:
@@ -112,7 +112,7 @@ happyforex_EA_instance = HappyForexEA()
 #             display_an_array_with_delimiter(individual.genes, '=')
 #             
 #             # Flip value at the mutation_point
-#             mutation_point = predefine_flip_value = DEFAULT_NUMBER
+#             mutation_point = predefine_flip_value = DEFAULT_NUMBER_INT
 #             print("==> mutation_point = %s" % mutation_point)
 #             individual.flip_value(mutation_point)
 #             
@@ -122,7 +122,7 @@ happyforex_EA_instance = HappyForexEA()
 #             
 #             
 #             # testing
-#             count = DEFAULT_NUMBER
+#             count = DEFAULT_NUMBER_INT
 #             flag_item = False
 #             if individual.genes[count][1] == str(predefine_flip_value):
 #                 flag_item = True
@@ -153,7 +153,7 @@ happyforex_EA_instance = HappyForexEA()
 ################################################################################
 ##########################           CLASS           ###########################
 ################################################################################
-class TestHappyForexEA(unittest.TestCase):
+class TestHappyForex_ST(unittest.TestCase):
 
     #===========================================================================
     def testName(self):
@@ -181,7 +181,6 @@ class TestHappyForexEA(unittest.TestCase):
         happyforex_EA_instance.OrderDelete_4(123458, ORDER_TOTAL_DICT)
         print("==> new length of dictionary after deleting 1 item: %s" % len(ORDER_TOTAL_DICT))
          
-         
         # testing
         defined_new_len = 5
         print("==> defined_new_len: %s" % defined_new_len)
@@ -202,9 +201,9 @@ class TestHappyForexEA(unittest.TestCase):
         for key in happyforex_EA_instance.ORDER_OPENED_DICT.keys():
             del happyforex_EA_instance.ORDER_OPENED_DICT[key]
             
-        happyforex_EA_instance.ORDER_OPENED_DICT[0] = [51200.00, 0.00, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        happyforex_EA_instance.ORDER_OPENED_DICT[1] = [51200.00, 3.00, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        happyforex_EA_instance.ORDER_OPENED_DICT[2] = [51200.00, 2.00, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        happyforex_EA_instance.ORDER_OPENED_DICT[0] = [1106359662.0, 12805.0, 7662.0, 2.0, 1106359680.0, 0.01, 102.92, 102.71, 0.0, 0.0, 209.25, 0]
+        happyforex_EA_instance.ORDER_OPENED_DICT[1] = [1106359662.0, 12805.0, 7662.0, 3.0, 1106359680.0, 0.01, 102.92, 102.71, 0.0, 0.0, 209.25, 0]
+        happyforex_EA_instance.ORDER_OPENED_DICT[1] = [1106359662.0, 12805.0, 7662.0, 1.0, 1106359680.0, 0.01, 102.92, 102.71, 0.0, 0.0, 209.25, 0]
         display_an_dict_with_delimiter(happyforex_EA_instance.ORDER_OPENED_DICT, '    ')
         print("==> length of dictionary before function DeletePendingOrder19_3: %s" % len(happyforex_EA_instance.ORDER_OPENED_DICT))
         
@@ -212,13 +211,11 @@ class TestHappyForexEA(unittest.TestCase):
         happyforex_EA_instance.DeletePendingOrder19_3()
         print("==> new length of dictionary after function DeletePendingOrder19_3: %s" % len(happyforex_EA_instance.ORDER_OPENED_DICT))
          
-         
         # testing
         defined_new_len = 2
         print("==> defined_new_len: %s" % defined_new_len)
          
         self.assertEquals(defined_new_len, len(happyforex_EA_instance.ORDER_OPENED_DICT), "Function IS NOT correct.")
-
 
     #===========================================================================
     def test_OrderAdd_4(self):
@@ -238,7 +235,6 @@ class TestHappyForexEA(unittest.TestCase):
         happyforex_EA_instance.OrderAdd_10(123458, HEADER_ORDER_DICT, ORDER_DICT)
         print("==> new length of dictionary after deleting 1 item: %s" % len(ORDER_DICT))
          
-         
         # testing
         defined_new_len = 3
         print("==> defined_new_len: %s" % defined_new_len)
@@ -251,12 +247,11 @@ class TestHappyForexEA(unittest.TestCase):
         
         self.assertTrue(flag_add, "Function IS NOT correct.")
 
-
     #===========================================================================
     def test_ProfitCheck_3(self):
         print('#============================== test_ProfitCheck_3 ==============================')
         
-        happyforex_EA_instance.CurrentProfit = float(DEFAULT_NUMBER)
+        happyforex_EA_instance.CurrentProfit = 320.15
         
         for key in happyforex_EA_instance.ORDER_CLOSED_DICT.keys():
             del happyforex_EA_instance.ORDER_CLOSED_DICT[key]
@@ -264,37 +259,37 @@ class TestHappyForexEA(unittest.TestCase):
         for key in happyforex_EA_instance.ORDER_OPENED_DICT.keys():
             del happyforex_EA_instance.ORDER_OPENED_DICT[key]
         
-        happyforex_EA_instance.ORDER_CLOSED_DICT[123.00] = [5105.00, OP_BUY, 123.00, 0.1, 1.458, 0.00, 0.00, -10.00, 0.00]
-        happyforex_EA_instance.ORDER_OPENED_DICT[456.00] = [5109.00, OP_BUYLIMIT, 456.00, 0.1, 1.123, 0.00, 0.00, 40.00, 0.00]
+        happyforex_EA_instance.ORDER_OPENED_DICT[123.00] = [1106359662.0, 12805.0, 7662.0, 1.0, 1106359680.0, 0.01, 102.92, 102.71, 0.0, 0.0, 209.25, 0]
+        happyforex_EA_instance.ORDER_OPENED_DICT[456.00] = [1105920071.0, 12800.0, 71.0, 0.0, 1105920129.0, 0.01, 101.98, 102.14, 0.0, 0.0, 159.25, 0]
          
         CurrentProfit = happyforex_EA_instance.ProfitCheck_3()
         print("==> CurrentProfit: %s" % CurrentProfit)
            
         # testing
-        defined_CurrentProfit = float(30)
+        defined_CurrentProfit = 320.15
         print("==> defined_CurrentProfit: %s" % defined_CurrentProfit)
            
-        self.assertEquals(defined_CurrentProfit - CurrentProfit, float(DEFAULT_NUMBER) ,
+        self.assertEquals(defined_CurrentProfit - CurrentProfit, float(DEFAULT_NUMBER_INT) ,
                           "Function IS NOT correct.")
           
     #===========================================================================
     def test_BrokerIs5Digit_0(self):
         print('#============================== test_BrokerIs5Digit_0 ==============================')
         
-        print("==> DIGITS: %s" % happyforex_EA_instance.DIGITS)
+        happyforex_EA_instance.NDigits = 5
+        print("==> DIGITS: %s" % happyforex_EA_instance.NDigits)
            
         flag_5Digit = happyforex_EA_instance.BrokerIs5Digit_0() 
         print(flag_5Digit)
            
         # testing
         self.assertTrue(flag_5Digit, "Function IS NOT correct.")
-           
 
     #===========================================================================
     def test_AccountBalance_1(self):
         print('#============================== test_AccountBalance_1 ==============================')
         
-        happyforex_EA_instance.balance = float(DEFAULT_NUMBER)
+        happyforex_EA_instance.balance = 112000.00
         
         for key in happyforex_EA_instance.ORDER_CLOSED_DICT.keys():
             del happyforex_EA_instance.ORDER_CLOSED_DICT[key]
@@ -302,59 +297,17 @@ class TestHappyForexEA(unittest.TestCase):
         for key in happyforex_EA_instance.ORDER_OPENED_DICT.keys():
             del happyforex_EA_instance.ORDER_OPENED_DICT[key]
         
-        # HEADER_ORDER_DICT: ['Date_Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']
-        happyforex_EA_instance.ORDER_CLOSED_DICT[123.00] = [5105.00, OP_BUY, 123.00, 0.1, 1.458, 0.00, 0.00, -10.00, 1990.00]
-        happyforex_EA_instance.ORDER_OPENED_DICT[456.00] = [5109.00, OP_BUYLIMIT, 456.00, 0.1, 1.123, 0.00, 0.00, 40.00, 1950.00]
+        # HEADER_ORDER_DICT: ['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']
+        happyforex_EA_instance.ORDER_CLOSED_DICT[123.00] = [1106359662.0, 12805.0, 7662.0, 1.0, 1106359680.0, 0.01, 102.92, 102.71, 0.0, 0.0, 209.25, 111475.75]
          
         balance = happyforex_EA_instance.AccountBalance_1()
         print("==> happyforex_EA_instance.balance: %s" % balance)
            
         # testing
-        defined_balance = 1990.00
+        defined_balance = 112000.00
         print("==> defined_balance: %s" % defined_balance)
            
-        self.assertEquals(defined_balance - balance, float(DEFAULT_NUMBER) ,
-                          "Function IS NOT correct.")
-
-#     #===========================================================================
-#     def test_OrdersHistoryTotal(self):
-#         print('#============================== test_OrdersHistoryTotal ==============================')
-#         
-#         # clear the happyforex_EA_instance.ORDER_CLOSED_DICT before testing
-#         for k in happyforex_EA_instance.ORDER_CLOSED_DICT.keys():
-#             del happyforex_EA_instance.ORDER_CLOSED_DICT[k]
-# 
-#         
-#         # HEADER_ORDER_CLOSED_HISTORY = ['Date_Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']
-#         happyforex_EA_instance.ORDER_CLOSED_DICT[DEFAULT_NUMBER] = ['1', '', '1', '', '', '', '', '', '-10', '990']
-#            
-#         cnt = happyforex_EA_instance.OrdersHistoryTotal()
-#         print("==> total close orders: %s" % cnt)
-#            
-#         # testing
-#         defined_total_closed_orders = 1
-#         print("==> defined_total_closed_orders: %s" % defined_total_closed_orders)
-#            
-#         self.assertEquals(defined_total_closed_orders, cnt, "Function IS NOT correct.")
-
-    #===========================================================================
-    def test_MODE_SPREAD_4(self):
-        print('#============================== test_MODE_SPREAD_4 ==============================')
-        
-        # HEADER_HISTORY_DATA = ['Date_Time', 'Bid', 'Ask', 'Volume']
-        # TICK_DATA[DEFAULT_NUMBER] = [2003.07.01_00:00:21.132,1.65538,1.65524,11.5,7.6]
-        print('HEADER_HISTORY_DATA = [Date_Time, Bid, Ask, Volume]')
-        print("==> TICK_DATA[0]: %s" % (happyforex_EA_instance.TICK_DATA[DEFAULT_NUMBER]))
-        
-        
-        MODE_SPREAD_1 = happyforex_EA_instance.MODE_SPREAD_1(DEFAULT_NUMBER)
-        print("==> happyforex_EA_instance.MODE_SPREAD_1 = abs(Bid-Ask) = %s" % MODE_SPREAD_1)
-           
-        # testing
-        defined_spread = abs(1.65538 - 1.65524) * 100000
-        print("==> defined_spread: %s" % defined_spread)
-           
-        self.assertEquals(defined_spread - MODE_SPREAD_1, float(DEFAULT_NUMBER) ,
+        self.assertEquals(defined_balance - balance, float(DEFAULT_NUMBER_INT) ,
                           "Function IS NOT correct.")
 
     #===========================================================================
@@ -365,18 +318,18 @@ class TestHappyForexEA(unittest.TestCase):
         TEST_DICT_SND = {}
         
         # testing
-        order_type = happyforex_EA_instance.OrderType_5(DEFAULT_NUMBER, TEST_DICT)
+        order_type = happyforex_EA_instance.OrderType_5(DEFAULT_NUMBER_INT, TEST_DICT)
         print("==> order_type: %s" % order_type)
            
         defined_order_type = -1.00
         print("==> defined_order_type: %s" % defined_order_type)
           
-        # HEADER_ORDER_CLOSED_HISTORY = ['Date_Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']
-        TEST_DICT[DEFAULT_NUMBER] = ['1', '1', '', '', '', '', '', '-10', '990']
-        TEST_DICT_SND[DEFAULT_NUMBER] = ['2', '3', '', '', '', '', '', '40', '950']
+        # HEADER_ORDER_CLOSED_HISTORY = ['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']
+        TEST_DICT[DEFAULT_NUMBER_INT] = [1106359662.0, 12805.0, 7662.0, 1.0, 1106359680.0, 0.01, 102.92, 102.71, 0.0, 0.0, 209.25, 111475.75]
+        TEST_DICT_SND[DEFAULT_NUMBER_INT] = [1105920071.0, 12800.0, 71.0, 0.0, 1105920129.0, 0.01, 101.98, 102.14, 0.0, 0.0, 159.25, 108756.25]
            
         # testing
-        order_type = happyforex_EA_instance.OrderType_5(DEFAULT_NUMBER, TEST_DICT)
+        order_type = happyforex_EA_instance.OrderType_5(DEFAULT_NUMBER_INT, TEST_DICT)
         print("==> order_type: %s" % order_type)
            
         defined_order_type = 1.00
@@ -385,49 +338,18 @@ class TestHappyForexEA(unittest.TestCase):
         self.assertEquals(defined_order_type, order_type, "Function IS NOT correct.")
        
         # testing
-        order_type = happyforex_EA_instance.OrderType_5(DEFAULT_NUMBER, TEST_DICT_SND)
+        order_type = happyforex_EA_instance.OrderType_5(DEFAULT_NUMBER_INT, TEST_DICT_SND)
         print("==> order_type: %s" % order_type)
            
-        defined_order_type = 3.00
+        defined_order_type = 0.00
         print("==> defined_order_type: %s" % defined_order_type)
            
         self.assertEquals(defined_order_type, order_type, "Function IS NOT correct.")
-
-#     #===========================================================================
-#     def test_ArrayResize(self):
-#         print('#============================== test_ArrayResize ==============================')
-#        
-#         myArray = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
-#         display_an_array_with_delimiter(myArray, '    ')
-#         print('==> myArray length: %s' % len(myArray))
-#                   
-#         # testing
-#         new_size = 8
-#         myArray = happyforex_EA_instance.ArrayResize(myArray, new_size)
-#         display_an_array_with_delimiter(myArray, '    ')
-#         print('==> myArray NEW length: %s' % len(myArray))
-#           
-#         defined_new_len = 8
-#         print("==> defined_new_len: %s" % defined_new_len)
-#           
-#         self.assertEquals(defined_new_len, len(myArray), "Function IS NOT correct.")
-#   
-#         # testing
-#         new_size = 2
-#         myArray = happyforex_EA_instance.ArrayResize(myArray, new_size)
-#         display_an_array_with_delimiter(myArray, '    ')
-#         print('==> myArray NEW length: %s' % len(myArray))
-#           
-#         defined_new_len = 2
-#         print("==> defined_new_len: %s" % defined_new_len)
-#           
-#         self.assertEquals(defined_new_len, len(myArray), "Function IS NOT correct.")                               
 
     #===========================================================================
     def test_MaxOrders_9(self):
         print('#============================== test_MaxOrders_9 ==============================')
         
-        happyforex_EA_instance.current_datetime = MARKET_TIME_STANDARD
         happyforex_EA_instance.USE_ORDERSLIMIT = True
         
         for key in happyforex_EA_instance.ORDER_CLOSED_DICT.keys():
@@ -436,21 +358,16 @@ class TestHappyForexEA(unittest.TestCase):
         for key in happyforex_EA_instance.ORDER_OPENED_DICT.keys():
             del happyforex_EA_instance.ORDER_OPENED_DICT[key]
         
-        # HEADER_ORDER_CLOSED_HISTORY = ['Date_Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']
-        happyforex_EA_instance.ORDER_CLOSED_DICT[123.0] = [0.00, 1.00, 123.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        happyforex_EA_instance.ORDER_CLOSED_DICT[456.0] = [0.00, 1.00, 456.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        happyforex_EA_instance.ords_in_a_day = 2
+        print("==> happyforex_EA_instance.ords_in_a_day: %s" % happyforex_EA_instance.ords_in_a_day)
         
-        happyforex_EA_instance.ORDER_OPENED_DICT[789.0] = [0.00, 0.00, 789.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        happyforex_EA_instance.ORDER_OPENED_DICT[164.0] = [0.00, 3.00, 164.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        happyforex_EA_instance.ORDER_OPENED_DICT[175.0] = [0.00, 2.00, 175.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        # HEADER_ORDER_CLOSED_HISTORY = ['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']
+        happyforex_EA_instance.ORDER_OPENED_DICT[123.00] = [1106359662.0, 12805.0, 7662.0, 2.0, 1106359680.0, 0.01, 102.92, 102.71, 0.0, 0.0, 209.25, 0]
         print('happyforex_EA_instance.ORDER_OPENED_DICT')
         display_an_dict_with_delimiter(happyforex_EA_instance.ORDER_OPENED_DICT, ' ')
-        print('happyforex_EA_instance.ORDER_CLOSED_DICT')
-        display_an_dict_with_delimiter(happyforex_EA_instance.ORDER_CLOSED_DICT, ' ')
-        
            
         # testing
-        orderLimit = 3
+        orderLimit = 2
         flag_orderLimit = happyforex_EA_instance.MaxOrders_9(orderLimit)
         print("==> orderLimit: %s" % orderLimit)
         print("==> happyforex_EA_instance.MaxOrders_9(orderLimit): %s" % flag_orderLimit)
@@ -458,9 +375,8 @@ class TestHappyForexEA(unittest.TestCase):
         self.assertTrue(flag_orderLimit, "Function IS NOT correct.")
         print('#============================== end test 1 ==============================')
         
-        
         # testing
-        defined_num_of_opened_oder = 1
+        defined_num_of_opened_oder = DEFAULT_NUMBER_INT
         print("==> defined_num_of_opened_oder: %s" % defined_num_of_opened_oder)
         print("==> num_of_opened_oder: %s" % len(happyforex_EA_instance.ORDER_OPENED_DICT))
         print('happyforex_EA_instance.ORDER_OPENED_DICT')
@@ -469,7 +385,6 @@ class TestHappyForexEA(unittest.TestCase):
         self.assertEquals(defined_num_of_opened_oder, len(happyforex_EA_instance.ORDER_OPENED_DICT),
                           "Function IS NOT correct.")                               
         print('#============================== end test 2 ==============================')
-        
         
         # testing
         orderLimit = 4
@@ -509,7 +424,7 @@ class TestHappyForexEA(unittest.TestCase):
         print("==> new_id: %s" % new_id)
         
         # testing
-        if (new_id > float(DEFAULT_NUMBER)):
+        if (new_id > float(DEFAULT_NUMBER_INT)):
             flag_created = True
         else:
             flag_created = False
@@ -529,13 +444,11 @@ class TestHappyForexEA(unittest.TestCase):
         print("==> normalized_num: %s" % normalized_num)
         print("==> float_checker(normalized_num): %s" % float_checker(normalized_num))
         
-        
         # testing
         define_normalized_num = 4.5699999
         print("==> define_normalized_num: %s" % define_normalized_num)
-        self.assertEquals(define_normalized_num - normalized_num, float(DEFAULT_NUMBER), "Function IS NOT correct.")
+        self.assertEquals(define_normalized_num - normalized_num, float(DEFAULT_NUMBER_INT), "Function IS NOT correct.")
         print('#============================== end test 1 ==============================')
-        
         
         digit_num = 0
         print("==> float_num: %s" % float_num)
@@ -545,20 +458,16 @@ class TestHappyForexEA(unittest.TestCase):
         print("==> normalized_num: %s" % normalized_num)
         print("==> float_checker(normalized_num): %s" % float_checker(normalized_num))
         
-        
         # testing
         define_normalized_num = 4.0000000
         print("==> define_normalized_num: %s" % define_normalized_num)
-        self.assertEquals(define_normalized_num - normalized_num, float(DEFAULT_NUMBER), "Function IS NOT correct.")
+        self.assertEquals(define_normalized_num - normalized_num, float(DEFAULT_NUMBER_INT), "Function IS NOT correct.")
         print('#============================== end test 2 ==============================')
-        
 
     #===========================================================================
     def test_BuyPendingOrder13_8(self):
         print('#============================== test_BuyPendingOrder13_8 ==============================')
     
-        happyforex_EA_instance.current_datetime = str(happyforex_EA_instance.TICK_DATA[DEFAULT_NUMBER][DATETIME_COL_INDEX])
-         
         happyforex_EA_instance.bid_price = 1.35226
         happyforex_EA_instance.ask_price = 1.35251
         happyforex_EA_instance.ords_in_a_day = 1
@@ -581,126 +490,27 @@ class TestHappyForexEA(unittest.TestCase):
                          "Function IS NOT correct.")
     
     #===========================================================================
-    def test_CalculateProfit_5(self):
-        print('#============================== test_CalculateProfit_5 ==============================')
-        
-        happyforex_EA_instance.current_datetime = happyforex_EA_instance.TICK_DATA[DEFAULT_NUMBER][DATETIME_COL_INDEX]
-        happyforex_EA_instance.bid_price = 1.50048
-        happyforex_EA_instance.ask_price = 1.35251
-        
-        for key in happyforex_EA_instance.ORDER_OPENED_DICT.keys():
-            del happyforex_EA_instance.ORDER_OPENED_DICT[key] 
-        
-        # HEADER_ORDER_CLOSED_HISTORY = ['Date_Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']
-        happyforex_EA_instance.ORDER_OPENED_DICT[123.00] = [5105.00, OP_BUY, 123.00, 0.1, 1.49764, 0.00, 0.00, 0.00, 0.00]
-        happyforex_EA_instance.ORDER_OPENED_DICT[456.00] = [5109.00, OP_BUYLIMIT, 456.00, 0.1, 1.123, 0.00, 0.00, 0.00, 0.00]
-        happyforex_EA_instance.ORDER_OPENED_DICT[789.00] = [5205.00, OP_SELL, 789.00, 0.1, 1.789, 0.00, 0.00, 0.00, 0.00]
-        print('happyforex_EA_instance.ORDER_OPENED_DICT')
-        display_an_dict_with_delimiter(happyforex_EA_instance.ORDER_OPENED_DICT, ' ')
-        
-        
-        happyforex_EA_instance.OrderClose_4(123.00, OP_BUY)
-        
-        print('happyforex_EA_instance.ORDER_OPENED_DICT after closing orders:')
-        display_an_dict_with_delimiter(happyforex_EA_instance.ORDER_OPENED_DICT, ' ')
-        print('happyforex_EA_instance.ORDER_CLOSED_DICT after closing orders:')
-        display_an_dict_with_delimiter(happyforex_EA_instance.ORDER_CLOSED_DICT, ' ')
-        
-        # testing
-        defined_length_of_ORDER_OPENED_DICT = 2
-        print("==> defined_length_of_ORDER_OPENED_DICT: %s" % defined_length_of_ORDER_OPENED_DICT)
-        print("==> length of ORDER_OPENED_DICT: %s" % len(happyforex_EA_instance.ORDER_OPENED_DICT))
-           
-        self.assertEqual(defined_length_of_ORDER_OPENED_DICT, len(happyforex_EA_instance.ORDER_OPENED_DICT),
-                         "Function IS NOT correct.")
-        print('#============================== end test 1 ==============================')
-    
-        # testing
-        
-        order = happyforex_EA_instance.ORDER_CLOSED_DICT[123.00]
-
-        profit = order[PROFIT_COL_INDEX] 
-        lots = order[LOTS_COL_INDEX]
-        print("==> profit: %s" % profit)
-        print("==> order lots: %s" % lots)
-       
-       
-        # testing
-        '''
-        if  (order_type == OP_BUY): 
-            profit = (exit_price - entry_price) * self.Lots * ONE_LOT_VALUE - COMMISSION
-         
-        elif (order_type == OP_SELL):
-            profit = (entry_price - exit_price) * self.Lots * ONE_LOT_VALUE - COMMISSION
-        '''
-        # (1.50048 - 1.49764) *  0.1 * 100000 - 0.75 = 27.65
-        defined_profit = 27.65
-        print("==> defined_profit: %s" % defined_profit)
-        print("==> defined_profit - profit: %s" % (defined_profit - profit))
-        print("==> float(DEFAULT_NUMBER): %s" % float(DEFAULT_NUMBER))
-        print("==> happyforex_EA_instance.NDigits: %s" % happyforex_EA_instance.NDigits)
-        
-        self.assertEqual(defined_profit - profit, float(DEFAULT_NUMBER), "Function IS NOT correct.")
-        print('#============================== end test 2 ==============================')
-    
-    
-    #===========================================================================
-    def test_UpdateProfit_1(self):
-        print('#============================== test_UpdateProfit_1 ==============================')
-        
-        happyforex_EA_instance.current_datetime = happyforex_EA_instance.TICK_DATA[DEFAULT_NUMBER][DATETIME_COL_INDEX]
-        happyforex_EA_instance.bid_price = 1.35226
-        happyforex_EA_instance.ask_price = 1.35251
-        
-        for key in happyforex_EA_instance.ORDER_OPENED_DICT.keys():
-            del happyforex_EA_instance.ORDER_OPENED_DICT[key] 
-        
-        # HEADER_ORDER_CLOSED_HISTORY = ['Date_Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']
-        happyforex_EA_instance.ORDER_OPENED_DICT[123.00] = [5105.00, OP_BUY, 123.00, 0.1, 1.458, 0.00, 0.00, 0.00, 0.00]
-        happyforex_EA_instance.ORDER_OPENED_DICT[456.00] = [5109.00, OP_BUYLIMIT, 456.00, 0.1, 1.123, 0.00, 0.00, 0.00, 0.00]
-        happyforex_EA_instance.ORDER_OPENED_DICT[789.00] = [5205.00, OP_SELL, 789.00, 0.1, 1.789, 0.00, 0.00, 0.00, 0.00]
-        print('happyforex_EA_instance.ORDER_OPENED_DICT')
-        display_an_dict_with_delimiter(happyforex_EA_instance.ORDER_OPENED_DICT, ' ')
-        
-        
-        happyforex_EA_instance.UpdateProfit_1()
-        print('happyforex_EA_instance.ORDER_OPENED_DICT after updating profit')
-        display_an_dict_with_delimiter(happyforex_EA_instance.ORDER_OPENED_DICT, ' ')
-        
-        # testing
-        flag_change = False
-        order_123 = happyforex_EA_instance.ORDER_OPENED_DICT[123.00]
-        profit = order_123[PROFIT_COL_INDEX]
-        print("==> profit of ORDER_OPENED_DICT[123.00]: %s" % profit)
-         
-        if profit != float(DEFAULT_NUMBER):
-            flag_change = True
-            
-        self.assertTrue(flag_change, "Function IS NOT correct.")
-    
-    #===========================================================================
-    def test_ModifyPendingOrder_1(self):
-        print('#============================== test_ModifyPendingOrder_1 ==============================')
-    
+    def test_ModifyPendingOrder_2(self):
+        print('#============================== test_ModifyPendingOrder_2 ==============================')
         
         for key in happyforex_EA_instance.ORDER_OPENED_DICT.keys():
             del happyforex_EA_instance.ORDER_OPENED_DICT[key] 
         for key in happyforex_EA_instance.ORDER_CLOSED_DICT.keys():
             del happyforex_EA_instance.ORDER_CLOSED_DICT[key] 
        
-        # HEADER_ORDER_CLOSED_HISTORY = ['Date_Time', 'Type', 'OrderID', 'Size', 'Price', 'SL', 'TP', 'Profit', 'Balance']
-        happyforex_EA_instance.ORDER_OPENED_DICT[123.00] = [5105.00, OP_BUYLIMIT, 123.00, 0.01, 1.458, 0.00, 0.00, 0.00, 0.00]
+        # HEADER_ORDER_CLOSED_HISTORY = ['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']
+        happyforex_EA_instance.ORDER_OPENED_DICT[1] = [1106359662.0, 12805.0, 7662.0, 2.0, 1106359680.0, 0.01, 1.458, 0, 0.0, 0.0, 209.25, 0]
         print('happyforex_EA_instance.ORDER_OPENED_DICT')
         display_an_dict_with_delimiter(happyforex_EA_instance.ORDER_OPENED_DICT, ' ')
         
         happyforex_EA_instance.ords_in_a_day = 1
         happyforex_EA_instance.OPENORDERSLIMITDAY = 3
-        happyforex_EA_instance.bid_price = 1.50048
+        happyforex_EA_instance.bid_nexttick_price = 1.50048
         happyforex_EA_instance.balance = 1000.00
         happyforex_EA_instance.CurrentProfit = 0.00
         happyforex_EA_instance.Lots = 0.01
         
-        happyforex_EA_instance.ModifyPendingOrder_1()
+        happyforex_EA_instance.ModifyPendingOrder_2()
         print('happyforex_EA_instance.ORDER_OPENED_DICT after ModifyPendingOrder_1')
         display_an_dict_with_delimiter(happyforex_EA_instance.ORDER_OPENED_DICT, ' ')
         
@@ -708,12 +518,11 @@ class TestHappyForexEA(unittest.TestCase):
         defined_type = OP_BUY
         print("==> defined_type: %s" % defined_type)
         
-        order_123 = happyforex_EA_instance.ORDER_OPENED_DICT[123.00]
+        order_123 = happyforex_EA_instance.ORDER_OPENED_DICT[1]
         order_type = order_123[ORDER_TYPE_COL_INDEX]
         print("==> order_type: %s" % order_type)
            
         self.assertEqual(defined_type, order_type, "Function IS NOT correct.")
-    
     
     #===========================================================================
     def test_CheckEnoughMoney_2(self):
@@ -723,21 +532,21 @@ class TestHappyForexEA(unittest.TestCase):
         margin = order[PRICE_COL_INDEX] * order[LOTS_COL_INDEX] * ONE_LOT_VALUE / LEVERAGE
         free_magin = equity - margin
         
-        equity = 1,000 + 0 = 1,000
-        margin = 1.458 * 0.01 * 10,0000 / 100 = 14.58
-        free_magin = 1,000 - 14.58 = 985.42
+        equity = 10,000 + 0 = 10,000
+        margin = 102.92 * 0.01 * 100,0000 / 100 = 1027.10
+        free_magin = 10,000 - 1,027.10 = 8,972.9
         
         if (free_magin >= margin):
             return True
         '''
         
-        happyforex_EA_instance.balance = 1000.00
+        happyforex_EA_instance.balance = 10000.00
         happyforex_EA_instance.CurrentProfit = 0.00
         print("==> happyforex_EA_instance.balance: %s" % happyforex_EA_instance.balance)
         print("==> happyforex_EA_instance.CurrentProfit: %s" % happyforex_EA_instance.CurrentProfit)
         
-        order_123 = [5105.00, OP_BUYLIMIT, 123.00, 0.01, 1.458, 0.00, 0.00, 0.00, 0.00]
-        
+        order_123 = [1106359662.0, 12805.0, 7662.0, 2.0, 1106359680.0, 0.01, 102.92, 102.71, 0.0, 0.0, 0, 0]
+       
         # testing 1
         flag_enoughmoney = happyforex_EA_instance.CheckEnoughMoney_2(order_123)
         print("==> flag_enoughmoney: %s" % flag_enoughmoney)
@@ -745,21 +554,19 @@ class TestHappyForexEA(unittest.TestCase):
         self.assertTrue(flag_enoughmoney, "Function IS NOT correct.")
         
         # testing 2
-        happyforex_EA_instance.balance = 20.00
+        happyforex_EA_instance.balance = 1000.00
         flag_enoughmoney = happyforex_EA_instance.CheckEnoughMoney_2(order_123)
         print("==> flag_enoughmoney: %s" % flag_enoughmoney)
         
         self.assertFalse(flag_enoughmoney, "Function IS NOT correct.")
         
-        
     #===========================================================================
     def test_DayOfWeek_3(self):
         print('#============================== test_DayOfWeek_3 ==============================')
         
-        Day_2009_05_01 = convert_string_day2float('2009.05.01_00:00:00,000', MARKET_TIME_STANDARD, DATETIME_FORMAT)
+        Day_2009_05_01 = convert_string_day2float('2009.05.01_00:00:00', MARKET_TIME_STANDARD, DATETIME_FORMAT)
         happyforex_EA_instance.current_day = Day_2009_05_01
         print("==> Day_2009_05_01 in numbers = %s" % Day_2009_05_01)
-        
         
         test_day_of_week = happyforex_EA_instance.DayOfWeek_3()
         print("==> test_day_of_week: %s" % test_day_of_week)
@@ -776,10 +583,9 @@ class TestHappyForexEA(unittest.TestCase):
         
         happyforex_EA_instance = HappyForexEA()
         
-        Time_04_30 = convert_string_millisecond2float('2009.05.01_06:30:02,624', MARKET_TIME_STANDARD, DATETIME_FORMAT)
+        Time_04_30 = convert_string_second2float('2009.05.01_06:30:02', MARKET_TIME_STANDARD, DATETIME_FORMAT)
         happyforex_EA_instance.current_time = Time_04_30
-        print("==> Time_04_30 in numbers = %s" % Time_04_30)
-        
+        print("==> Time_04:30 in numbers = %s" % Time_04_30)
         
         test_hour_tick = happyforex_EA_instance.TimeHour_4()
         print("==> test_hour_tick: %s" % test_hour_tick)
@@ -796,12 +602,11 @@ class TestHappyForexEA(unittest.TestCase):
         
         happyforex_EA_instance = HappyForexEA()
         
-        Time_04_30 = convert_string_millisecond2float('2009.05.01_06:30:02,624', MARKET_TIME_STANDARD, DATETIME_FORMAT)
+        Time_04_30 = convert_string_second2float('2009.05.01_06:30:02', MARKET_TIME_STANDARD, DATETIME_FORMAT)
         happyforex_EA_instance.current_time = Time_04_30
-        print("==> Time_04_30 in numbers = %s" % Time_04_30)
+        print("==> Time_04:30 in numbers = %s" % Time_04_30)
         
-        
-        test_minute_tick = happyforex_EA_instance.TimeHour_4()
+        test_minute_tick = happyforex_EA_instance.TimeMinute_3()
         print("==> test_minute_tick: %s" % test_minute_tick)
            
         # testing
@@ -809,11 +614,12 @@ class TestHappyForexEA(unittest.TestCase):
         print("==> defined_minute_tick: %s" % defined_minute_tick)
            
         self.assertEquals(defined_minute_tick, test_minute_tick , "Function IS NOT correct.") 
-
+    
+     
 ################################################################################
 ##########################           CLASS           ###########################
 ################################################################################
-class TestDataHandler(unittest.TestCase):
+class TestHardcodedData(unittest.TestCase):
 
     def setUp(self):
         pass
@@ -827,17 +633,17 @@ class TestDataHandler(unittest.TestCase):
         path_test = os.getcwd()
         print('before convert = %s' % path_test)
             
-        backflash_count = DEFAULT_NUMBER
+        backflash_count = DEFAULT_NUMBER_INT
             
         # convert to forward flash
         path_test = convert_backflash2forwardflash(path_test)
         for i in range(len(path_test)):
             if path_test[i] == '\\':
-                backflash_count += DEFAULT_SECOND_NUMBER
+                backflash_count += DEFAULT_SECOND_NUMBER_INT
         print('after convert = %s' % path_test)
             
         # testing
-        self.assertEqual(backflash_count, DEFAULT_NUMBER, "Convert NOT Successful.")
+        self.assertEqual(backflash_count, DEFAULT_NUMBER_INT, "Convert NOT Successful.")
            
     #===========================================================================
     def test_float_checker(self):
@@ -915,14 +721,12 @@ class TestDataHandler(unittest.TestCase):
    
         file_name_dict = 'myDic_out.csv'
         write_wholedict2csv_no_header(test_dict, file_name_dict)
-           
                   
         # testing
         file_exist_flag = False
         if os.path.isfile(file_name_dict):
             file_exist_flag = True 
         self.assertTrue(file_exist_flag, "CANNOT write the array to the CSV file.")
-           
            
         # testing
         file_size_flag = False
@@ -944,7 +748,6 @@ class TestDataHandler(unittest.TestCase):
    
         file_name_dict = 'myDic_out.csv'
         write_value_of_dict2csv_no_header(test_dict, file_name_dict)
-           
                   
         # testing
         file_exist_flag = False
@@ -965,7 +768,6 @@ class TestDataHandler(unittest.TestCase):
            
         file_name_history_data = 'myArray_out.csv'
         write_array2csv_with_delimiter_no_header(myArray, file_name_history_data, ',')
-           
                   
         # testing
         file_exist_flag = False
@@ -973,11 +775,10 @@ class TestDataHandler(unittest.TestCase):
             file_exist_flag = True 
         self.assertTrue(file_exist_flag, "CANNOT write the array to the CSV file.")
            
-           
         # testing
         file_size_flag = False
         statinfo = os.stat(file_name_history_data)
-        if (statinfo.st_size > DEFAULT_NUMBER):
+        if (statinfo.st_size > DEFAULT_NUMBER_INT):
             file_size_flag = True
         self.assertTrue(file_size_flag, "CANNOT write any data of the array to the CSV file.")
            
@@ -1002,16 +803,14 @@ class TestDataHandler(unittest.TestCase):
             for j in range(len(new_array[i])):
                 if str(new_array[i][j]) != str(myArray[i][j]):
                     same_content_flag = False
-                       
                   
         # testing
         self.assertEqual(len(myArray), len(new_array),
                          "The new array DOESN'T have the same rows with the source array.")
-        self.assertEqual(len(myArray[DEFAULT_NUMBER]), len(new_array[DEFAULT_NUMBER]),
+        self.assertEqual(len(myArray[DEFAULT_NUMBER_INT]), len(new_array[DEFAULT_NUMBER_INT]),
                          "The new array DOESN'T have the same columns with the source array.")
         self.assertTrue(same_content_flag,
                          "The new array DOESN'T have the same content with the source array.")
-           
    
     #===========================================================================
     def test_permutation_count(self):
@@ -1099,8 +898,8 @@ class TestDataHandler(unittest.TestCase):
         print('')
         print('#============================== test_is_time_earlier ==============================')
          
-        sdatetime_1 = '2018.01.07_11:22:12.000'
-        sdatetime_2 = '2017.01.08_11:22:13.000'
+        sdatetime_1 = '2018.01.07_11:22:12'
+        sdatetime_2 = '2017.01.08_11:22:13'
         print('==> date time format = %s' % DATETIME_FORMAT)
         print('==> sdatetime_1 = %s' % sdatetime_1)
         print('==> sdatetime_2 = %s' % sdatetime_2)
@@ -1111,26 +910,44 @@ class TestDataHandler(unittest.TestCase):
         self.assertFalse(flag_early_date, "The function IS NOT correct..") 
     
     #===========================================================================
-    def test_convert_string_datetime2float(self):
+    def test_convert_string_datetime2float_no_ms(self):
         print('')
-        print('#============================== test_convert_string_datetime2float ==============================')
-         
+        print('#============================== test_convert_string_datetime2float_no_ms ==============================')
         
-        convert_datetime = '2018.01.07_11:22:12.000'
+        convert_datetime = '2018.01.07_11:22:12'
         std_datetime = MARKET_TIME_STANDARD
         print('==> date time format = %s' % DATETIME_FORMAT)
         print('==> convert_datetime = %s' % convert_datetime)
         print('==> std_datetime = %s' % std_datetime)
         
-        float_datetime = convert_string_datetime2float(convert_datetime, std_datetime, DATETIME_FORMAT)
+        float_datetime = convert_string_datetime2float_no_ms(convert_datetime, std_datetime, DATETIME_FORMAT)
         print('==> float_datetime = %s' % float_datetime)
         
         # testing
-        defined_int_datetime = 58470.00
-        print('==> defined_int_datetime = %s' % defined_int_datetime)
-        self.assertEqual(defined_int_datetime - float_datetime, float(DEFAULT_NUMBER), "The function IS NOT correct..") 
-            
+        defined_int_datetime = 1515324132.00
+        print('==> defined_int_datetime = %.2f' % defined_int_datetime)
+        self.assertEqual(defined_int_datetime - float_datetime, float(DEFAULT_NUMBER_INT), "The function IS NOT correct..") 
+               
+    #===========================================================================
+    def test_convert_string_second2float(self):
+        print('')
+        print('#============================== test_convert_string_second2float ==============================')
+        
+        convert_datetime = '2018.01.07_00:01:20'
+        std_datetime = MARKET_TIME_STANDARD
+        print('==> date time format = %s' % DATETIME_FORMAT)
+        print('==> convert_datetime = %s' % convert_datetime)
+        print('==> std_datetime = %s' % std_datetime)
+        
+        float_milliseconds = convert_string_second2float(convert_datetime, std_datetime, DATETIME_FORMAT)
+        print('==> float_milliseconds = %s' % float_milliseconds)
+        
+        # testing
+        defined_milliseconds = 80.00
+        print('==> defined_milliseconds = %s' % defined_milliseconds)
+        self.assertEqual(defined_milliseconds - float_milliseconds, float(DEFAULT_NUMBER_INT), "The function IS NOT correct..") 
 
+    
 ################################################################################
 ##########################           MAIN           ############################
 ################################################################################
