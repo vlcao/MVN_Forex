@@ -29,6 +29,7 @@ from DataHandler.hardcoded_data import MAX_LOTS, NET_PROFIT, MAX_FITNESS, \
                                     display_an_array_with_delimiter, \
     DEFAULT_NUMBER_FLOAT
 import cProfile
+import multiprocessing
 
 log = logging.getLogger(__name__)
 
@@ -339,26 +340,6 @@ class Population(object):
     # Calculate the fitness of each individual
     def cal_fitness(self, Individual):
         
-        ''' 
-        OLD CODE:
-            # divide the total fitness (100) to 2 part (50/50)
-            (net_profit, total_win) = happyforex_EA_instance.run()
-            
-            # adjust the net_profit & total_win
-            if net_profit > NET_PROFIT:
-                net_profit = NET_PROFIT
-            
-            if total_win > MAX_WIN_TOTAL_TRADE:
-                total_win = MAX_WIN_TOTAL_TRADE
-                
-            fitness = round(50 * (net_profit / NET_PROFIT 
-                                 + total_win / MAX_WIN_TOTAL_TRADE), 2)
-        '''
-        
-        time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
-        log.info("==>  Start calculating fitness for individual {0}...".format(Individual.individual_ID))
-        print("{0} ==>  Start calculating fitness for individual {1}...".format(time_stamp, Individual.individual_ID))
-        
         Individual.fitness = DEFAULT_NUMBER_INT
         
         # run the EA logic to return the profit
@@ -393,8 +374,9 @@ class Population(object):
 
         ''' MULTITHREADING '''
         # make the Pool of workers
-        ea_pool = ThreadPool(4)
-         
+        pool_size = multiprocessing.cpu_count()
+        ea_pool = ThreadPool(pool_size)
+        
         # and return the all_fitness_results
 #         individuals_w_fitness = ea_pool.map(self.cal_fitness, self.individuals)
         results = [ea_pool.apply_async(self.cal_fitness, (ind_,)) for ind_ in self.individuals]
@@ -579,33 +561,35 @@ class HappyForexGenericAlgorithm(object):
                                                                        self.second_fittest_ind.genes)
         
         ''' MONOTHREADING
+        # Calculate fitness for these high fitness individuals
         self.fittest_ind = self.population.cal_fitness(self.fittest_ind)
         self.second_fittest_ind = self.population.cal_fitness(self.second_fittest_ind)
-        '''
+        MONOTHREADING ''' 
         
-        ''' MULTITHREADING ''' 
+        highest_individuals = [self.fittest_ind, self.second_fittest_ind]
+        
+        ''' MULTITHREADING '''
         # make the Pool of workers
-        ea_pool = ThreadPool(4)
-         
-        # --> and return the all_fitness_results
-#         fittest_inds_w_fitness = ea_pool.map(self.population.cal_fitness, [self.fittest_ind, self.second_fittest_ind])
+        pool_size = multiprocessing.cpu_count()
+        ea_pool = ThreadPool(pool_size)
+        
+        # and return the all_fitness_results
+        results = [ea_pool.apply_async(self.population.cal_fitness, (ind_,)) for ind_ in highest_individuals]
          
         # --> proxy.get() waits for task completion and returns the result
-        results = [ea_pool.apply_async(self.population.cal_fitness, (ind_,)) for ind_ in [self.fittest_ind, self.second_fittest_ind]]
-        fittest_inds_w_fitness = [r.get() for r in results]  
+        individuals_w_fitness = [r.get() for r in results]  
+        self.fittest_ind = individuals_w_fitness[DEFAULT_NUMBER_INT]
+        self.second_fittest_ind = individuals_w_fitness[DEFAULT_SECOND_NUMBER_INT]
          
-        self.fittest_ind = fittest_inds_w_fitness[DEFAULT_NUMBER_INT]
-        self.second_fittest_ind = fittest_inds_w_fitness[DEFAULT_SECOND_NUMBER_INT]
-         
-        # --> close the pool and wait for the work to finish 
+        # close the pool and wait for the work to finish 
         ea_pool.close() 
-#         ea_pool.join() 
+        ''' MULTITHREADING '''
         
         # Get index of least fit individual to retrieve that individual
         least_fittest_index = self.population.get_least_fittest()
         self.least_fittest_ind = self.population.individuals[least_fittest_index]
         
-        # save profit to dictionary
+        # Save profit to dictionary
         self.population.FITNESS_DICT[str(self.added_offstring_ind.individual_ID) + '_eliminated'] = round(self.added_offstring_ind.net_profit, 2)
         
         # Retrieve the highest fitness offspring
@@ -614,12 +598,12 @@ class HappyForexGenericAlgorithm(object):
         # Replace least fitness individual by the highest fitness offspring
         self.population.individuals[least_fittest_index] = self.added_offstring_ind
         
-        # update individuals_ID_dict
+        # Update individuals_ID_dict
         value_least_fittest_ind = self.population.individuals_ID_dict[self.least_fittest_ind.individual_ID]
         del self.population.individuals_ID_dict[self.least_fittest_ind.individual_ID]
         self.population.individuals_ID_dict[self.added_offstring_ind.individual_ID] = value_least_fittest_ind
 
-        # save profit to dictionary
+        # Save profit to dictionary
         self.population.FITNESS_DICT[str(self.added_offstring_ind.individual_ID) + '_added'] = round(self.added_offstring_ind.net_profit, 2)
         
 ################################################################################
@@ -648,12 +632,14 @@ def ga_run():
     time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
     print('%s ==> population size: %s' % (time_stamp, happyforexGA.population.popSize))
     
+    time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
     log.info('#============================================================')
     log.info('==> first individual genes and genes_completed:')
     print('#============================================================')
-    time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
     print('%s ==> first individual genes and genes_completed:' % time_stamp)
     display_an_array_with_delimiter(happyforexGA.population.individuals[DEFAULT_NUMBER_INT].genes_completed, '=')
+    log.info('#============================================================')
+    print('#============================================================')
     display_an_array_with_delimiter(happyforexGA.population.individuals[DEFAULT_NUMBER_INT].genes, '=')
     
     # Write the individual_ID_list to a CSV file for reference
@@ -743,13 +729,11 @@ def ga_run():
         
         if happyforexGA.fittest_ind.fitness < MAX_FITNESS:
             time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
-            file_path_highest_solution = folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + SYMBOL + FILENAME_HIGHEST_FITNESS
-            file_path_highest_parameters = folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + SYMBOL + FILENAME_HIGHEST_PARAMETERS
+            file_path_highest_solution = folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_$' + str(happyforexGA.fittest_ind.net_profit) + '_' + SYMBOL + FILENAME_HIGHEST_FITNESS
+            file_path_highest_parameters = folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_$' + str(happyforexGA.fittest_ind.net_profit) + '_' + SYMBOL + FILENAME_HIGHEST_PARAMETERS
         
             write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes, file_path_highest_solution, '=')
             write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes_completed, file_path_highest_parameters, '=')
-            write_wholedict2csv_no_header(happyforexGA.fittest_ind.ORDER_CLOSED_DICT, folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + FILENAME_ORDER_CLOSED_HISTORY)
-            write_wholedict2csv_no_header(happyforexGA.fittest_ind.ORDER_DELETED_DICT, folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + FILENAME_ORDER_DELETED_HISTORY)
         
         write_wholedict2csv_no_header(happyforexGA.population.FITNESS_DICT, folder_output + 'profit_list.csv')
         
@@ -771,12 +755,9 @@ def ga_run():
     
     # Write out the whole best parameters
     time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
-    write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes, folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + SYMBOL + FILENAME_BEST_SOLUTION, '=')
-    write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes_completed, folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + SYMBOL + FILENAME_BEST_PARAMETERS, '=')
+    write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes, folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_$' + str(happyforexGA.fittest_ind.net_profit) + '_' + SYMBOL + FILENAME_BEST_SOLUTION, '=')
+    write_array2csv_with_delimiter_no_header(happyforexGA.fittest_ind.genes_completed, folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_$' + str(happyforexGA.fittest_ind.net_profit) + '_' + SYMBOL + FILENAME_BEST_PARAMETERS, '=')
     
-    write_wholedict2csv_no_header(happyforexGA.fittest_ind.ORDER_CLOSED_DICT, folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + FILENAME_ORDER_CLOSED_HISTORY)
-    write_wholedict2csv_no_header(happyforexGA.fittest_ind.ORDER_DELETED_DICT, folder_output + time_stamp + '_' + str(happyforexGA.fittest_ind.fitness) + '_' + FILENAME_ORDER_DELETED_HISTORY)
-        
     # Write the population final to a CSV file for reference
     time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
     log.info('#============================== Write the population final to a CSV file ==============================')
@@ -792,26 +773,26 @@ def ga_run():
 #============================================================
 if __name__ == '__main__': 
 
-    ga_run()
+#     ga_run()
     
-#     # If applicable, delete the existing log file to generate a fresh log file during each execution
-#     if path.isfile(FOLDER_DATA_OUTPUT + FILENAME_LOG_BACKTEST):
-#         remove(FOLDER_DATA_OUTPUT + FILENAME_LOG_BACKTEST)
-#         
-#     handler = logging.handlers.WatchedFileHandler(os.environ.get("LOGFILE", FOLDER_DATA_OUTPUT + FILENAME_LOG_BACKTEST))
-#     
-#     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-#     handler.setFormatter(formatter)
-#     
-#     root = logging.getLogger()
-#     root.setLevel(os.environ.get("LOGLEVEL", "INFO"))
-#     root.addHandler(handler)
-#     
-#     try:
-#         # running ST
-#         cProfile.run('ga_run()', FOLDER_DATA_OUTPUT + FILENAME_PROFILE_BACKTEST)
-#         
-#     except Exception:
-#         logging.exception("Exception in main")
-#         exit(1) 
+    # If applicable, delete the existing log file to generate a fresh log file during each execution
+    if path.isfile(FOLDER_DATA_OUTPUT + FILENAME_LOG_BACKTEST):
+        remove(FOLDER_DATA_OUTPUT + FILENAME_LOG_BACKTEST)
+         
+    handler = logging.handlers.WatchedFileHandler(os.environ.get("LOGFILE", FOLDER_DATA_OUTPUT + FILENAME_LOG_BACKTEST))
+     
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+     
+    root = logging.getLogger()
+    root.setLevel(os.environ.get("LOGLEVEL", "INFO"))
+    root.addHandler(handler)
+     
+    try:
+        # running ST
+        cProfile.run('ga_run()', FOLDER_DATA_OUTPUT + FILENAME_PROFILE_BACKTEST)
+         
+    except Exception:
+        logging.exception("Exception in main")
+        exit(1) 
 

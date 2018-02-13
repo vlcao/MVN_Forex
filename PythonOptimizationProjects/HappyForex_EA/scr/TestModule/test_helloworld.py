@@ -128,10 +128,16 @@ def create_a_new_row_gaincapital_format(row):
         [22,"USD/JPY",2009-05-01 00:00:00, 102.540000, 102.580000,"D"]
         ==> [2009.05.01_00:00:00,000, 102.540000,102.580000, 102.540000,102.580000]
         ==> [1241136000296.000000, 14365.0, 000.0, 98.89, 98.902, 98.887, 98.899] '''
-     
+    
+    # GAIN Capital tick data from 2005 to 2009
     datetime_col_index = 2
     bid_col_index = 3
     ask_col_index = 4
+    
+#     # GAIN Capital tick data from 2010 to 2016
+#     datetime_col_index = 3
+#     bid_col_index = 4
+#     ask_col_index = 5
     
     if (row[datetime_col_index] != '0'):
         # --> get the part BEFORE (Date) and AFTER (Time) the Space
@@ -140,9 +146,12 @@ def create_a_new_row_gaincapital_format(row):
         date_part = split_space[DEFAULT_NUMBER_INT]
         time_second_part = split_space[DEFAULT_SECOND_NUMBER_INT]
          
-        # --> format the date time as expected
-        date_modified_part = ('' + date_part.replace('-', '.') + '_' + time_second_part)
-         
+        # --> format the date time as expected WITH millisecond
+        date_modified_part = ('' + date_part.replace('-', '.') + '_' + time_second_part.split('.')[DEFAULT_NUMBER_INT] + '.000')
+        
+#         # --> format the date time as expected WITHOUT millisecond
+#         date_modified_part = ('' + date_part.replace('-', '.') + '_' + time_second_part.split('.')[DEFAULT_NUMBER_INT])
+        
         fdatetime_modified_part = convert_string_datetime2float_no_ms(date_modified_part, MARKET_TIME_STANDARD, DATETIME_FORMAT)
         fday_modified_part = convert_string_day2float(date_modified_part, MARKET_TIME_STANDARD, DATETIME_FORMAT)
         ftime_modified_part = convert_string_second2float(date_modified_part, MARKET_TIME_STANDARD, DATETIME_FORMAT)
@@ -197,8 +206,8 @@ def create_multiple_tick_data_from_wholefolder_gaincapital_format(folder_name):
         for row in reader:
         
             new_row = (','. join([str(j) for j in create_a_new_row_gaincapital_format(previous_row)])
-                       + ',' 
-                       + ','. join([str(j) for j in create_a_new_row_gaincapital_format(row)])
+#                        + ',' 
+#                        + ','. join([str(j) for j in create_a_new_row_gaincapital_format(row)])
                        + "\n")
             
             # write to CSV the new row: [Date_Time, Day, Millisecond, Bid, Ask, Date_Time_NextTick, Day_NextTick, Millisecond_NextTick, Bid_NextTick, Ak_NextTick]
@@ -209,13 +218,13 @@ def create_multiple_tick_data_from_wholefolder_gaincapital_format(folder_name):
                
         ifile.close()
        
-        # create the last row
-        last_row = [DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT]
+#         # create the last row
+#         last_row = [DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT]
          
         # create a new version of last row (GAIN Capital Tick Data Format)
         new_row = (','. join([str(j) for j in create_a_new_row_gaincapital_format(previous_row)]) 
-                       + ',' 
-                       + ','. join([str(j) for j in last_row])
+#                        + ',' 
+#                        + ','. join([str(j) for j in last_row])
                        + "\n")
             
         # write to CSV the last new row: [Date_Time, Day, Millisecond, Bid, Ask, Date_Time_NextTick, Day_NextTick, Millisecond_NextTick, Bid_NextTick, Ak_NextTick]
@@ -225,18 +234,21 @@ def create_multiple_tick_data_from_wholefolder_gaincapital_format(folder_name):
            
     time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
     print("{0} ==> Completed {1} files!!!".format(time_stamp, file_index - DEFAULT_SECOND_NUMBER_INT))
-
  
 #===============================================================================
+
+
+# --> format the date time as expected WITH millisecond
 MARKET_TIME_STANDARD = '1970.01.01_00:00:00.000'
 DATETIME_FORMAT = '%Y.%m.%d_%H:%M:%S.%f'
 create_multiple_tick_data_from_wholefolder_gaincapital_format(os.path.dirname(os.getcwd()) 
-                                                              + '/DataHandler/data/input/USDJPY/USDJPY_GAINCapital_Original_with_milliseconds')
+                                                              + '/DataHandler/data/input/USDJPY/USDJPY_Original_with_milliseconds')
 
-MARKET_TIME_STANDARD = '1970.01.01_00:00:00'
-DATETIME_FORMAT = '%Y.%m.%d_%H:%M:%S'
-create_multiple_tick_data_from_wholefolder_gaincapital_format(os.path.dirname(os.getcwd()) 
-                                                              + '/DataHandler/data/input/USDJPY/USDJPY_GAINCapital_Original_without_milliseconds')
+# # --> format the date time as expected WITHOUT millisecond
+# MARKET_TIME_STANDARD = '1970.01.01_00:00:00'
+# DATETIME_FORMAT = '%Y.%m.%d_%H:%M:%S'
+# create_multiple_tick_data_from_wholefolder_gaincapital_format(os.path.dirname(os.getcwd()) 
+#                                                               + '/DataHandler/data/input/USDJPY/USDJPY_Original_without_milliseconds')
 
 # import os
 # import glob

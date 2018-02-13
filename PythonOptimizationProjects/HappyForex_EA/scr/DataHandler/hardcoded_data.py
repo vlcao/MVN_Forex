@@ -33,7 +33,7 @@ OP_SELLSTOP = 5.00
 DEPOSIT = 100000.00
 MAX_FITNESS = 100.00
 MAX_LOTS = 0.10
-NET_PROFIT = 41677.35
+NET_PROFIT = 4167700.35
 COMMISSION = 0.75
 LEVERAGE = 100.00
 ONE_LOT_VALUE = 100000.00
@@ -44,22 +44,29 @@ ORDER_ID_COL_INDEX = 4
 LOTS_COL_INDEX = 5
 PRICE_ENTRY_COL_INDEX = 6
 PRICE_EXIT_COL_INDEX = 7
+TP_COL_INDEX = 9
 PROFIT_COL_INDEX = 10
 BALANCE_COL_INDEX = 11
 
-# HEADER_TICK_DATA = [Date_Time, Day, Millisecond, Bid, Ask, Date_Time_NextTick, Day_NextTick, Millisecond_NextTick, Bid_NextTick, Ak_NextTick]
+# HEADER_TICK_DATA = [Date_Time, Day, Second, Bid, Ask]
 DATETIME_COL_INDEX = 0
 DAY_COL_INDEX = 1
 TIME_COL_INDEX = 2
 BID_COL_INDEX = 3
 ASK_COL_INDEX = 4
-DATETIME_NEXTTICK_COL_INDEX = 5
-DAY_NEXTTICK_COL_INDEX = 6
-TIME_NEXTTICK_COL_INDEX = 7
-BID_NEXTTICK_COL_INDEX = 8
-ASK_NEXTTICK_COL_INDEX = 9
 
-PERIOD = 'H1'
+# Time frame of each period in seconds
+PERIOD_M1 = 60.00
+PERIOD_M5 = 300.00
+PERIOD_M15 = 900.00
+PERIOD_M30 = 1800.00
+PERIOD_H1 = 3600.00
+PERIOD_H4 = 14400.00
+PERIOD_D1 = 86400.00
+PERIOD_W1 = 432000.00
+PERIOD_MN = 1728000.00
+
+TIME_FRAME = PERIOD_H1
 SYMBOL = 'USDJPY'
 QUOTE_CURRENCY = 'JPY'
 
@@ -67,7 +74,7 @@ import os
 SCR_DIR_PATH = os.path.dirname(os.getcwd())
 FOLDER_DATA_INPUT = SCR_DIR_PATH + '/DataHandler/data/input/'
 FOLDER_DATA_OUTPUT = SCR_DIR_PATH + '/DataHandler/data/output/'
-FOLDER_TICK_DATA_MODIFIED = '/USDJPY_GAINCapital_Modified_TEST'
+FOLDER_TICK_DATA_MODIFIED = '/USDJPY_GAINCapital_Modified'
 
 FILENAME_TICK_DATA = '/USDJPY-2009-05.csv'
 FILENAME_PARAMETER_DEFAULT = 'default_parameters.csv'
@@ -245,10 +252,16 @@ def create_a_new_row_gaincapital_format(row):
         [22,"USD/JPY",2009-05-01 00:00:00, 102.540000, 102.580000,"D"]
         ==> [2009.05.01_00:00:00,000, 102.540000,102.580000, 102.540000,102.580000]
         ==> [1241136000296.000000, 14365.0, 000.0, 98.89, 98.902, 98.887, 98.899] '''
-     
-    datetime_col_index = 2
-    bid_col_index = 3
-    ask_col_index = 4
+    
+#     # GAIN Capital tick data from 2005 to 2009
+#     datetime_col_index = 2
+#     bid_col_index = 3
+#     ask_col_index = 4
+    
+    # GAIN Capital tick data from 2010 to 2016
+    datetime_col_index = 3
+    bid_col_index = 4
+    ask_col_index = 5
     
     if (row[datetime_col_index] != '0'):
         # --> get the part BEFORE (Date) and AFTER (Time) the Space
@@ -257,9 +270,12 @@ def create_a_new_row_gaincapital_format(row):
         date_part = split_space[DEFAULT_NUMBER_INT]
         time_second_part = split_space[DEFAULT_SECOND_NUMBER_INT]
          
-        # --> format the date time as expected
-        date_modified_part = ('' + date_part.replace('-', '.') + '_' + time_second_part)
-         
+        # --> format the date time as expected WITH millisecond
+        date_modified_part = ('' + date_part.replace('-', '.') + '_' + time_second_part.split('.')[DEFAULT_NUMBER_INT] + '.000')
+        
+#         # --> format the date time as expected WITHOUT millisecond
+#         date_modified_part = ('' + date_part.replace('-', '.') + '_' + time_second_part.split('.')[DEFAULT_NUMBER_INT])
+        
         fdatetime_modified_part = convert_string_datetime2float_no_ms(date_modified_part, MARKET_TIME_STANDARD, DATETIME_FORMAT)
         fday_modified_part = convert_string_day2float(date_modified_part, MARKET_TIME_STANDARD, DATETIME_FORMAT)
         ftime_modified_part = convert_string_second2float(date_modified_part, MARKET_TIME_STANDARD, DATETIME_FORMAT)
@@ -292,7 +308,7 @@ def create_multiple_tick_data_from_wholefolder_gaincapital_format(folder_name):
         time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
         file_basename = os.path.basename(file_)
         print("{0} ==> processing file {1}: {2} ...".format(time_stamp, file_index, file_basename))
-        
+         
         file_name = convert_backflash2forwardflash_change_output_folder(file_)
           
         if (file_index % 10 == DEFAULT_NUMBER_INT):
@@ -314,8 +330,8 @@ def create_multiple_tick_data_from_wholefolder_gaincapital_format(folder_name):
         for row in reader:
         
             new_row = (','. join([str(j) for j in create_a_new_row_gaincapital_format(previous_row)])
-                       + ',' 
-                       + ','. join([str(j) for j in create_a_new_row_gaincapital_format(row)])
+#                        + ',' 
+#                        + ','. join([str(j) for j in create_a_new_row_gaincapital_format(row)])
                        + "\n")
             
             # write to CSV the new row: [Date_Time, Day, Millisecond, Bid, Ask, Date_Time_NextTick, Day_NextTick, Millisecond_NextTick, Bid_NextTick, Ak_NextTick]
@@ -326,13 +342,13 @@ def create_multiple_tick_data_from_wholefolder_gaincapital_format(folder_name):
                
         ifile.close()
        
-        # create the last row
-        last_row = [DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT]
+#         # create the last row
+#         last_row = [DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT]
          
         # create a new version of last row (GAIN Capital Tick Data Format)
         new_row = (','. join([str(j) for j in create_a_new_row_gaincapital_format(previous_row)]) 
-                       + ',' 
-                       + ','. join([str(j) for j in last_row])
+#                        + ',' 
+#                        + ','. join([str(j) for j in last_row])
                        + "\n")
             
         # write to CSV the last new row: [Date_Time, Day, Millisecond, Bid, Ask, Date_Time_NextTick, Day_NextTick, Millisecond_NextTick, Bid_NextTick, Ak_NextTick]
@@ -343,7 +359,7 @@ def create_multiple_tick_data_from_wholefolder_gaincapital_format(folder_name):
     time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
     print("{0} ==> Completed {1} files!!!".format(time_stamp, file_index - DEFAULT_SECOND_NUMBER_INT))
 
-    
+
 #===============================================================================
 def create_a_new_row_pepperstone_format(previous_row, row):
     ''' For Pepperstone Tick Data Format. 
@@ -464,15 +480,15 @@ def combine_all_files_in_a_folder(folder_name, combined_file_name, file_type):
              
     file_index = DEFAULT_SECOND_NUMBER_INT
     for file_ in allFiles:
-        log.info(" ==> combining file {0}...".format(file_index))
-        time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
-        print("{0} ==> combining file {1}...".format(time_stamp, file_index))
-        
-        if (file_index % 10 == DEFAULT_NUMBER_INT):
-            perc = round((float(file_index) / float(len(allFiles))) * float(100), 2)
-            log.info("... ==> processing {0}% of the data...".format(perc))
-            time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
-            print("{0} ... ==> processing {1}% of the data...".format(time_stamp, perc))
+#         log.info(" ==> combining file {0}...".format(file_index))
+#         time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+#         print("{0} ==> combining file {1}...".format(time_stamp, file_index))
+#         
+#         if (file_index % 10 == DEFAULT_NUMBER_INT):
+#             perc = round((float(file_index) / float(len(allFiles))) * float(100), 2)
+#             log.info("... ==> processing {0}% of the data...".format(perc))
+#             time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+#             print("{0} ... ==> processing {1}% of the data...".format(time_stamp, perc))
           
         # open the CSV file
         ifile = open(file_, "rU")
@@ -485,9 +501,9 @@ def combine_all_files_in_a_folder(folder_name, combined_file_name, file_type):
         
         file_index += DEFAULT_SECOND_NUMBER_INT
       
-    log.info("==> Completed combining {0} files!!!".format(file_index - DEFAULT_SECOND_NUMBER_INT))
-    time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
-    print("{0} ==> Completed combining {1} files!!!".format(time_stamp, file_index - DEFAULT_SECOND_NUMBER_INT))
+#     log.info("==> Completed combining {0} files!!!".format(file_index - DEFAULT_SECOND_NUMBER_INT))
+#     time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+#     print("{0} ==> Completed combining {1} files!!!".format(time_stamp, file_index - DEFAULT_SECOND_NUMBER_INT))
 
 
 #===============================================================================
@@ -888,16 +904,18 @@ def order_delete(self, row_index, array_data):
         log.info("There's NO row %s in data." % row_index)
       
 #===============================================================================
-# # Create TICK_DATA with Modification from Original Tick Data CSV file WITHOUT milliseconds
-# FOLDER_TICK_DATA_ORIGINAL = '/USDJPY_GAINCapital_Original_without_milliseconds'
-# MARKET_TIME_STANDARD = '1970.01.01_00:00:00'
-# DATETIME_FORMAT = '%Y.%m.%d_%H:%M:%S'
-# create_multiple_tick_data_from_wholefolder_gaincapital_format(FOLDER_DATA_INPUT + SYMBOL + FOLDER_TICK_DATA_ORIGINAL)
-# 
 # # Create TICK_DATA with Modification from Original Tick Data CSV file WITH milliseconds
+# # --> format the date time as expected WITH millisecond
 # FOLDER_TICK_DATA_ORIGINAL = '/USDJPY_GAINCapital_Original_with_milliseconds'
 # MARKET_TIME_STANDARD = '1970.01.01_00:00:00.000'
 # DATETIME_FORMAT = '%Y.%m.%d_%H:%M:%S.%f'
+# create_multiple_tick_data_from_wholefolder_gaincapital_format(FOLDER_DATA_INPUT + SYMBOL + FOLDER_TICK_DATA_ORIGINAL)
+#
+# # Create TICK_DATA with Modification from Original Tick Data CSV file WITHOUT milliseconds
+# # --> format the date time as expected WITHOUT millisecond
+# FOLDER_TICK_DATA_ORIGINAL = '/USDJPY_GAINCapital_Original_without_milliseconds'
+# MARKET_TIME_STANDARD = '1970.01.01_00:00:00'
+# DATETIME_FORMAT = '%Y.%m.%d_%H:%M:%S'
 # create_multiple_tick_data_from_wholefolder_gaincapital_format(FOLDER_DATA_INPUT + SYMBOL + FOLDER_TICK_DATA_ORIGINAL)
 
 
