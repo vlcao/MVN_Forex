@@ -11,6 +11,8 @@ import logging.handlers
 import os
 import glob
 import shutil
+import numpy as np
+import sys
 
 from multiprocessing.dummy import Pool as ThreadPool
 from os import path, remove
@@ -29,7 +31,8 @@ from DataHandler.hardcoded_data import DEFAULT_NUMBER_INT, DEPOSIT, DEFAULT_SECO
     DEFAULT_NUMBER_FLOAT, DEFAULT_SECOND_NUMBER_FLOAT, TIME_FRAME, \
     DEFAULT_PARAMETERS_DATA, TP_COL_INDEX, CALENDAR_ALL_SYMBOLS_DATA, \
     CALENDAR_BASE_SYMBOL_DATA, CALENDAR_QUOTE_SYMBOL_DATA, IMPACT_COL_INDEX, \
-    write_array2csv_with_delimiter_no_header, convert_datetime_back_whole_list
+    write_array2csv_with_delimiter_no_header, convert_datetime_back_whole_list, \
+    display_an_array_with_delimiter
     
 import multiprocessing
 from astropy.units import day
@@ -105,8 +108,6 @@ class HappyForexEA(object):
         self.SAFEEQUITYRISK = DEFAULT_NUMBER_FLOAT
 
         # new variables which will be changed in the class
-        self.total_win = DEFAULT_NUMBER_FLOAT 
-        self.total_loss = DEFAULT_NUMBER_FLOAT
         self.net_profit = DEFAULT_NUMBER_FLOAT
         self.ords_in_a_day = DEFAULT_NUMBER_INT
         self.current_datetime = DEFAULT_NUMBER_FLOAT  # (year + month + day + hour + minute + second  in SECOND)
@@ -119,6 +120,7 @@ class HappyForexEA(object):
         self.ask_price = DEFAULT_NUMBER_FLOAT
         self.bid_nexttick_price = DEFAULT_NUMBER_FLOAT
         self.ask_nexttick_price = DEFAULT_NUMBER_FLOAT
+        self.yesterday_close = DEFAULT_NUMBER_FLOAT
         self.mode_spread = DEFAULT_NUMBER_FLOAT
         self.order_ID_dict = {}  # a dictionary (as a hash-map) for storing ID
         
@@ -138,15 +140,13 @@ class HappyForexEA(object):
         self.EVENTS_OF_CALENDAR_ALL_SYMBOLS = []
         self.EVENTS_OF_CALENDAR_BASE_SYMBOLS = []
         self.EVENTS_OF_CALENDAR_QUOTE_SYMBOLS = []
-        self. PARAMETERS_DATA = []
+        self.TIMEFRAME_TICK_DATA = []
+        self.TIMEFRAME_OHLC_DATA = []
         
         # Create dictionaries for storing Closed, Deleted, and Opened/Pending orders with KEY is OrderID
         self.ORDER_CLOSED_DICT = {} 
         self.ORDER_OPENED_DICT = {} 
         self.ORDER_DELETED_DICT = {} 
-        
-        # Create a list for storing the Tick data
-        self.TICK_DATA = []
         
         # old variables from EA
         self.NDigits = DEFAULT_SECOND_NUMBER_FLOAT
@@ -261,6 +261,7 @@ class HappyForexEA(object):
         self.ask_price = DEFAULT_NUMBER_FLOAT
         self.bid_nexttick_price = DEFAULT_NUMBER_FLOAT
         self.ask_nexttick_price = DEFAULT_NUMBER_FLOAT
+        self.yesterday_close = DEFAULT_NUMBER_FLOAT
         self.mode_spread = DEFAULT_NUMBER_FLOAT
         self.order_ID_dict = {}  # a dictionary (as a hash-map) for storing ID
             
@@ -280,16 +281,14 @@ class HappyForexEA(object):
         self.EVENTS_OF_CALENDAR_ALL_SYMBOLS = []
         self.EVENTS_OF_CALENDAR_BASE_SYMBOLS = []
         self.EVENTS_OF_CALENDAR_QUOTE_SYMBOLS = []
-        self. PARAMETERS_DATA = []
+        self.TIMEFRAME_TICK_DATA = []
+        self.TIMEFRAME_OHLC_DATA = []
         
         # Create a dictionary (as a hash-map) for storing Closed, Deleted, and Opened/Pending orders with KEY is OrderID
         self.ORDER_CLOSED_DICT = {} 
         self.ORDER_OPENED_DICT = {} 
         self.ORDER_DELETED_DICT = {} 
        
-        # Create a list for storing the Tick data
-        self.TICK_DATA = []
-        
         # old variables from EA
         self.NDigits = DEFAULT_SECOND_NUMBER_FLOAT
         self.PipValue = DEFAULT_SECOND_NUMBER_FLOAT
@@ -959,42 +958,146 @@ class HappyForexEA(object):
         
         if (exists == True):
             self.IfBuyOrderDoesNotExist6_7(2);
+    
+    #===============================================================================
+    def ExpMovingAverage(self, values, window):
+        weights = np.exp(np.linspace(-1., 0., window))
+        weights /= weights.sum()
+        a = np.convolve(values, weights, mode='full')[:len(values)]
+        a[:window] = a[window]
         
+        return a
+    
+    #===============================================================================
+    def iTrueRange(self, open, high, low, close, yesterday_close):
+        
+        count = high - low  # today close
+        y = abs(high - yesterday_close)
+        z = abs(low - yesterday_close)
+        
+        if (y <= count >= z):
+            iTrueRange = count
+        elif (count <= y >= z):
+            iTrueRange = y
+        elif (count <= z >= y):
+            iTrueRange = z
+            
+        return iTrueRange    
+
+    #===============================================================================
+    def ATRPips(self, atr, size, point):
+        
+        # create the atr_pips list following the size of atr
+        data_col = len(atr[DEFAULT_NUMBER_INT]) 
+        data_row = len(atr)
+        atr_pips = [[DEFAULT_NUMBER_FLOAT for x in range(data_col)] for y in range(data_row)] 
+        
+        for row_count in range(int(size)):
+            for col_count in range(len(atr[row_count])):
+                atr_pips[row_count][col_count] = int(float(atr[row_count][col_count]) / point)
+        
+        return atr_pips
+
+    #===============================================================================
+    def ohlc_resample(self, timeframe_tickdata):
+        ''' Convert the Bid price from Tick data into Open, High, Low, Close price '''
+        
+        # get open and close bid price
+        openp = timeframe_tickdata[DEFAULT_NUMBER_INT][BID_COL_INDEX]
+        closep = timeframe_tickdata[len(timeframe_tickdata) - DEFAULT_SECOND_NUMBER_INT][BID_COL_INDEX]
+        
+        # get high, low of the bid price in this time_frame data
+        highp = sys.maxint * -1
+        lowp = sys.maxint
+        for tick in timeframe_tickdata:
+            bid_price = tick[BID_COL_INDEX]
+            
+            # get high and low price
+            if (bid_price >= highp):
+                highp = bid_price
+            if (bid_price < lowp):
+                lowp = bid_price
+                
+        return [openp, highp, lowp, closep]
+
+    #===============================================================================
+    def iATR(self, period, shift):
+        ''' ATR function '''
+
+        if (len(self.TIMEFRAME_OHLC_DATA) > int(period - shift)
+            and int(period - shift) > DEFAULT_NUMBER_INT):
+            # calculate the True Range and ATR
+            TrueRanges = []
+            open_inx_col = 0
+            high_inx_col = 1
+            low_inx_col = 2
+            close_inx_col = 3
+            
+            for rate in self.TIMEFRAME_OHLC_DATA:
+                openp = float(str(rate[open_inx_col]))
+                highp = float(str(rate[high_inx_col]))
+                lowp = float(str(rate[low_inx_col]))
+                closep = float(str(rate[close_inx_col]))
+                
+                TrueRange = self.iTrueRange(openp, highp, lowp, closep, self.yesterday_close)
+        
+                # save TrueRange into an array for ATR calculation            
+                TrueRanges.append(TrueRange)
+            
+            ATR = self.ExpMovingAverage(TrueRanges, int(period - shift))
+            ATR_list = np.array(ATR).tolist()
+            
+        else:
+            ATR_list = []
+        
+        return ATR_list
+
     #===============================================================================
     def ATRFilter_5(self):
         ''' ATRFilter_5. '''
-        
+
         atr = [DEFAULT_NUMBER_FLOAT for i in range(int(self.MathMax_6(self.ATRPeriod1, self.ATRPeriod2) + self.ATR_Period))]
-        atr_pips = [DEFAULT_NUMBER_FLOAT for i in range(int(self.MathMax_6(self.ATRPeriod1, self.ATRPeriod2) + self.ATR_Period))]
-         
-        # TODO: Work out the iATR and ATRPips function in Python
-#         for i in range(self.MathMax_6(self.ATRPeriod1, self.ATRPeriod2) + self.ATR_Period):
-#             # iATR(): Calculates the Average True Range indicator and returns its value.
-#             atr[i] = iATR(Symbol(),PERIOD_M15,self.ATR_Period,i)
-#          
-#         ATRPips(atr, atr_pips, self.MathMax_6(self.ATRPeriod1,self.ATRPeriod2)+self.ATR_Period, self.my_point)
-         
+        
+        # calculate open, high, low, close of the bid price following the TIME FRAME 
+        self.TIMEFRAME_OHLC_DATA.append(self.ohlc_resample(self.TIMEFRAME_TICK_DATA))
+        
+        # calculate the ATR
+        for i in range(int(self.MathMax_6(self.ATRPeriod1, self.ATRPeriod2) + self.ATR_Period)):
+            # iATR(Symbol(), TIME_FRAME, self.ATR_Period, i): Calculates the Average True Range indicator and returns its value.
+            atr[i] = self.iATR(self.ATR_Period, i)
+           
+        # calculate the ATR_PIP
+        if (len(atr[DEFAULT_NUMBER_INT]) != DEFAULT_NUMBER_INT):
+            atr_pips = self.ATRPips(atr, self.MathMax_6(self.ATRPeriod1, self.ATRPeriod2) + self.ATR_Period, self.my_point)
+        else:
+            atr_pips = [DEFAULT_NUMBER_FLOAT for i in range(int(self.MathMax_6(self.ATRPeriod1, self.ATRPeriod2) + self.ATR_Period))]
+            
+        # retrieve back the results from ATR_PIP
         atr_p = atr_pips[DEFAULT_NUMBER_INT]
         ATRPrePips1 = atr_pips[int(self.ATRPeriod1)]
         ATRPrePips2 = atr_pips[int(self.ATRPeriod2)]
          
+        # placing Pending orders with constraints
         if ((((ATRPrePips1 >= self.ATRDnLimit1 and ATRPrePips1 <= self.ATRUpLimit1 and ATRPrePips2 >= self.ATRDnLimit1 and ATRPrePips2 <= self.ATRUpLimit1 and atr_p >= self.ATRDnLimit1 and atr_p <= self.ATRUpLimit1) 
               or (ATRPrePips1 >= self.ATRDnLimit2 and ATRPrePips1 <= self.ATRUpLimit2 and ATRPrePips2 >= self.ATRDnLimit2 and ATRPrePips2 <= self.ATRUpLimit2 and atr_p >= self.ATRDnLimit2 and atr_p <= self.ATRUpLimit2) 
               or (ATRPrePips1 >= self.ATRDnLimit3 and ATRPrePips1 <= self.ATRUpLimit3 and ATRPrePips2 >= self.ATRDnLimit3 and ATRPrePips2 <= self.ATRUpLimit3 and atr_p >= self.ATRDnLimit3 and atr_p <= self.ATRUpLimit3)) 
              and(self.FILTERING == True)) or (self.SellOrderExists == True) or (self.BuyOrderExists == True)):
      
             ATR = "Not ATR filtering!"
+            log.info(ATR)
             self.IfOrderDoesNotExist11_6()
             self.IfOrderDoesNotExist12_6()
         
         # TODO: DEMO --> START here: 2 functions lead to placing Pending orders 
         elif (ATRPrePips1 == DEFAULT_NUMBER_FLOAT and ATRPrePips2 == DEFAULT_NUMBER_FLOAT):
             ATR = "Not ATR filtering!"
+            log.info(ATR)
             self.IfOrderDoesNotExist11_6()
             self.IfOrderDoesNotExist12_6()
         # DEMO --> END here
         else:
             ATR = "ATR Filtering!"
+            log.info(ATR)
             if((self.DeletePOATR == True) and (self.FILTERING == True)):
                 self.DeletePendingOrder18_3()
                 self.DeletePendingOrder19_3()
@@ -1005,6 +1108,7 @@ class HappyForexEA(object):
             
         if (self.FILTERING == False):  
             ATR = ""
+            log.info(ATR)
             self.IfOrderDoesNotExist11_6()
             self.IfOrderDoesNotExist12_6()
         
@@ -1856,13 +1960,15 @@ class HappyForexEA(object):
         self.initilize(PARAMETERS_DATA, DIGITS, POINT)
         
         fprevious_day = float(TICK_DATA[DEFAULT_NUMBER_INT][DAY_COL_INDEX])
+        self.yesterday_close = float(TICK_DATA[DEFAULT_NUMBER_INT][BID_COL_INDEX])
         
         # get all events of the CALENDAR_DATA
         self.EVENTS_OF_CALENDAR_ALL_SYMBOLS = self.get_event_in_a_day(fprevious_day, CALENDAR_ALL_SYMBOLS_DATA)
         self.EVENTS_OF_CALENDAR_BASE_SYMBOLS = self.get_event_in_a_day(fprevious_day, CALENDAR_BASE_SYMBOL_DATA)
         self.EVENTS_OF_CALENDAR_QUOTE_SYMBOLS = self.get_event_in_a_day(fprevious_day, CALENDAR_QUOTE_SYMBOL_DATA)
         
-        current_tick = next_tick = DEFAULT_NUMBER_INT
+        current_tick = DEFAULT_NUMBER_INT
+        next_tick = DEFAULT_NUMBER_INT
         while (current_tick < len(TICK_DATA) - DEFAULT_SECOND_NUMBER_INT):
             
             time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
@@ -1899,12 +2005,18 @@ class HappyForexEA(object):
                 
                 # save the old date
                 fprevious_day = self.current_day
+                self.yesterday_close = float(TICK_DATA[current_tick][BID_COL_INDEX])
                 
                 # reset the Maximum Open orders per day
                 self.ords_in_a_day = DEFAULT_NUMBER_INT
               
             # find the next tick following the input Time Frame
             while next_tick < range(len(TICK_DATA) - current_tick):
+                
+                # save all rows from current tick to next tick
+                self.TIMEFRAME_TICK_DATA.append(TICK_DATA[next_tick])
+                
+                # get day and time of next tick
                 self.current_day_nexttick = float(TICK_DATA[next_tick][DAY_COL_INDEX])
                 self.current_time_nexttick = float(TICK_DATA[next_tick][TIME_COL_INDEX])
                 
@@ -1935,7 +2047,7 @@ class HappyForexEA(object):
                     break
                 else:
                     next_tick += DEFAULT_SECOND_NUMBER_INT
-                
+            
             # check if reaching maximum orders and delete the pending orders            
             if (self.MaxOrders_9(self.OPENORDERSLIMITDAY)):
                 continue
@@ -2006,12 +2118,11 @@ class HappyForexEA(object):
         folder_name = convert_backflash2forwardflash(FOLDER_DATA_INPUT + SYMBOL + FOLDER_TICK_DATA_MODIFIED)
         allFiles = glob.glob(folder_name + '/*.csv')
         
-        ''' SINGLETHREADING 
+        ''' SINGLETHREADING '''
         for file_ in allFiles:
             total_profit += HappyForexEA().analised_tick_data(PARAMETERS_DATA, folder_output, file_,)
-        '''
         
-        ''' MULTITHREADING '''
+        ''' MULTITHREADING 
         # make the Pool of workers
         pool_size = multiprocessing.cpu_count()
         
@@ -2042,6 +2153,7 @@ class HappyForexEA(object):
         # get the total profit after running all the Tick data
         for profit_ in profits:
             total_profit += float(profit_)
+        '''    
             
         # write out other data for reference
         file_name_out = FOLDER_DATA_OUTPUT + SYMBOL + '/ind_' + str(individual_ID) + '_$' + str(round(total_profit, 2)) + '_' + FILENAME_ORDER_CLOSED_HISTORY
@@ -2072,36 +2184,36 @@ class HappyForexEA(object):
 #===============================================================================
 if __name__ == "__main__":
     
-#     # create an instance EA for running 
-#     happyforex_EA_instance = HappyForexEA()
-#            
-#     # running EA
-#     happyforex_EA_instance.run(DEFAULT_PARAMETERS_DATA, 1)
+    # create an instance EA for running 
+    happyforex_EA_instance = HappyForexEA()
+             
+    # running EA
+    happyforex_EA_instance.run(DEFAULT_PARAMETERS_DATA, 1)
     
-    ''' RUNNING WITH LOG AND PROFILE '''
-    # If applicable, delete the existing log file to generate a fresh log file during each execution
-    if path.isfile(FOLDER_DATA_OUTPUT + FILENAME_LOG_EA):
-        remove(FOLDER_DATA_OUTPUT + FILENAME_LOG_EA)
-         
-    handler = logging.handlers.WatchedFileHandler(os.environ.get("LOGFILE", FOLDER_DATA_OUTPUT + FILENAME_LOG_EA))
-     
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
-     
-    root = logging.getLogger()
-    root.setLevel(os.environ.get("LOGLEVEL", "INFO"))
-    root.addHandler(handler)
-     
-    try:
-              
-        # create an instance EA for running 
-        happyforex_EA_instance = HappyForexEA()
-        
-        # running EA
-        cProfile.run('happyforex_EA_instance.run(DEFAULT_PARAMETERS_DATA, 1)', FOLDER_DATA_OUTPUT + FILENAME_PROFILE_EA)
-#         happyforex_EA_instance.run(DEFAULT_PARAMETERS_DATA, 1)
-        
-    except Exception:
-        logging.exception("Exception in main")
-        exit(1) 
+#     ''' RUNNING WITH LOG AND PROFILE '''
+#     # If applicable, delete the existing log file to generate a fresh log file during each execution
+#     if path.isfile(FOLDER_DATA_OUTPUT + FILENAME_LOG_EA):
+#         remove(FOLDER_DATA_OUTPUT + FILENAME_LOG_EA)
+#           
+#     handler = logging.handlers.WatchedFileHandler(os.environ.get("LOGFILE", FOLDER_DATA_OUTPUT + FILENAME_LOG_EA))
+#       
+#     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+#     handler.setFormatter(formatter)
+#       
+#     root = logging.getLogger()
+#     root.setLevel(os.environ.get("LOGLEVEL", "INFO"))
+#     root.addHandler(handler)
+#       
+#     try:
+#                
+#         # create an instance EA for running 
+#         happyforex_EA_instance = HappyForexEA()
+#          
+#         # running EA
+#         cProfile.run('happyforex_EA_instance.run(DEFAULT_PARAMETERS_DATA, 1)', FOLDER_DATA_OUTPUT + FILENAME_PROFILE_EA)
+# #         happyforex_EA_instance.run(DEFAULT_PARAMETERS_DATA, 1)
+#          
+#     except Exception:
+#         logging.exception("Exception in main")
+#         exit(1) 
 

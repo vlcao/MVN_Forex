@@ -701,6 +701,17 @@ def number_after_decimal(number):
 
 
 #===============================================================================
+def digit_of_symbol(number):
+    # check number whether it is a float number (just in case)
+    if float_checker(number) == False:
+        return DEFAULT_NUMBER_INT
+    else:
+        num_of_digit = Decimal(str(number))
+        digit = (num_of_digit.as_tuple().exponent) * (-1)
+        return int(digit)
+
+
+#===============================================================================
 def point_of_symbol(number):
     ''' point=1/pow(10,digits): definition from MetaTrader 4 Manager API '''
     
@@ -710,17 +721,6 @@ def point_of_symbol(number):
     else:
         point = float(1) / pow(10, digit_of_symbol(number))
         return point
-
-
-#===============================================================================
-def digit_of_symbol(number):
-    # check number whether it is a float number (just in case)
-    if float_checker(number) == False:
-        return DEFAULT_NUMBER_INT
-    else:
-        num_of_digit = Decimal(str(number))
-        digit = (num_of_digit.as_tuple().exponent) * (-1)
-        return int(digit)
 
 
 #===============================================================================
@@ -1055,15 +1055,20 @@ def convert_datetime_back_whole_list(file_name_out):
         data_converted[i][TIME_COL_INDEX] = time_converted
         
     return data_converted
+
         
 #===============================================================================
-# # Create TICK_DATA with Modification from Original Tick Data CSV file WITH milliseconds
-# # --> format the date time as expected WITH millisecond (Note: need to do 2 time with columns format from from 2005 to 2009 VS from 2010 to 2017)
-# FOLDER_TICK_DATA_ORIGINAL = '/USDJPY_GAINCapital_Original_with_milliseconds'
-# MARKET_TIME_STANDARD = '1970.01.01_00:00:00.000'
-# DATETIME_FORMAT = '%Y.%m.%d_%H:%M:%S.%f'
-# create_multiple_tick_data_from_wholefolder_gaincapital_format(FOLDER_DATA_INPUT + SYMBOL + FOLDER_TICK_DATA_ORIGINAL)
+# TODO: Run 2 times for 2 formats: 2005-2009 & 2010-2017
+# Create TICK_DATA with Modification from Original Tick Data CSV file WITH milliseconds
+# --> format the date time as expected WITH millisecond (Note: need to do 2 time with columns format from from 2005 to 2009 VS from 2010 to 2017)
+FOLDER_TICK_DATA_ORIGINAL = '/USDJPY_GAINCapital_Original_with_milliseconds'
+
+
+MARKET_TIME_STANDARD = '1970.01.01_00:00:00.000'
+DATETIME_FORMAT = '%Y.%m.%d_%H:%M:%S.%f'
+create_multiple_tick_data_from_wholefolder_gaincapital_format(FOLDER_DATA_INPUT + SYMBOL + FOLDER_TICK_DATA_ORIGINAL)
 # 
+# # TODO: Run 2 times for 2 formats: 2005-2009 & 2010-2017
 # # Create TICK_DATA with Modification from Original Tick Data CSV file WITHOUT milliseconds
 # # --> format the date time as expected WITHOUT millisecond (Note: need to do 2 time with columns format from from 2005 to 2009 VS from 2010 to 2017)
 # FOLDER_TICK_DATA_ORIGINAL = '/USDJPY_GAINCapital_Original_without_milliseconds'
@@ -1073,7 +1078,6 @@ def convert_datetime_back_whole_list(file_name_out):
 # 
 # # Create CALENDAR_DATA with Modification from Original Calendar Data CSV file WITHOUT milliseconds
 # create_multiple_calendar_data_from_wholefolder_forexfactory_format(FOLDER_DATA_INPUT + FOLDER_CALENDAR_DATA_ORIGINAL)
-
 
 time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
 log.info("==> Load DEFAULT_PARAMETERS_DATA: %s ..." % (FOLDER_DATA_INPUT + FILENAME_PARAMETER_DEFAULT))
