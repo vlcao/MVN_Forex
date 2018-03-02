@@ -120,24 +120,17 @@ def convert_string_second2float(convert_datetime, std_datetime, sformat):
 
  
 #===============================================================================
-def create_a_new_row_gaincapital_format(row):
-    ''' For GAIN Capital Tick Data Format. 
-    ==> Analyze the string separated by Space to get Date, Time, Ask, Bid and then create a new version 
-    of that row as Date_Time, Date, Time, Ask, Bid, Ask_NextTick (from next row), Bid_NextTick (from next row) 
-    Ex: [4,"USD/JPY",2009-05-01 00:00:00, 102.540000, 102.580000,"D"]
-        [22,"USD/JPY",2009-05-01 00:00:00, 102.540000, 102.580000,"D"]
-        ==> [2009.05.01_00:00:00,000, 102.540000,102.580000, 102.540000,102.580000]
-        ==> [1241136000296.000000, 14365.0, 000.0, 98.89, 98.902, 98.887, 98.899] '''
+def create_a_new_row_forexfactory_format(row):
+    ''' For FOREXFACTORY Calendar Data Format. 
+    ==> Analyze the string separated by Space to get [Date Time, Symbol, Impact Level] and then create a new version 
+    of that row as [Date_Time, Date, Time, Symbol, Impact Level]
+    Ex: [2009-05-01 00:00:00, ALL, 2] 
+        ==> [1241136000296.0, 14365.0, 000.0, ALL, 2] '''
     
-    # GAIN Capital tick data from 2005 to 2009
-    datetime_col_index = 2
-    bid_col_index = 3
-    ask_col_index = 4
-    
-#     # GAIN Capital tick data from 2010 to 2016
-#     datetime_col_index = 3
-#     bid_col_index = 4
-#     ask_col_index = 5
+    # GAIN Capital tick data from 2007 to 2014
+    datetime_col_index = 0
+    symbol_col_index = 1
+    impact_col_index = 2
     
     if (row[datetime_col_index] != '0'):
         # --> get the part BEFORE (Date) and AFTER (Time) the Space
@@ -146,18 +139,15 @@ def create_a_new_row_gaincapital_format(row):
         date_part = split_space[DEFAULT_NUMBER_INT]
         time_second_part = split_space[DEFAULT_SECOND_NUMBER_INT]
          
-        # --> format the date time as expected WITH millisecond
-        date_modified_part = ('' + date_part.replace('-', '.') + '_' + time_second_part.split('.')[DEFAULT_NUMBER_INT] + '.000')
-        
-#         # --> format the date time as expected WITHOUT millisecond
-#         date_modified_part = ('' + date_part.replace('-', '.') + '_' + time_second_part.split('.')[DEFAULT_NUMBER_INT])
+        # --> format the date time as expected WITHOUT millisecond
+        date_modified_part = ('' + date_part.replace('-', '.') + '_' + time_second_part.split('.')[DEFAULT_NUMBER_INT])
         
         fdatetime_modified_part = convert_string_datetime2float_no_ms(date_modified_part, MARKET_TIME_STANDARD, DATETIME_FORMAT)
         fday_modified_part = convert_string_day2float(date_modified_part, MARKET_TIME_STANDARD, DATETIME_FORMAT)
         ftime_modified_part = convert_string_second2float(date_modified_part, MARKET_TIME_STANDARD, DATETIME_FORMAT)
         
         # --> create a new row for Tick data
-        new_row = ['%.1f' % fdatetime_modified_part, fday_modified_part, ftime_modified_part, float(row[bid_col_index]), float(row[ask_col_index])]
+        new_row = ['%.1f' % fdatetime_modified_part, fday_modified_part, ftime_modified_part, row[symbol_col_index], float(row[impact_col_index])]
     else:
         # --> create a new row for Tick data
         new_row = row
@@ -166,14 +156,13 @@ def create_a_new_row_gaincapital_format(row):
 
  
 #===============================================================================
-def create_multiple_tick_data_from_wholefolder_gaincapital_format(folder_name):
-    ''' For GAIN Capital Tick Data Format. 
-    ==> Read each row of all Original Tick data file, create a new version of that row, and then
+def create_multiple_calendar_data_from_wholefolder_forexfactory_format(folder_name):
+    ''' For FOREXFACTORY Calendar Data Format. 
+    ==> Read each row of all Original Tick data file [Date Time, Symbol, Impact Level], 
+    create a new version of that row, and then
     combine them by writing each new version row into 1 new CSV file 
-    Ex: [4,"USD/JPY",2009-05-01 00:00:00, 102.540000, 102.580000,"D"]
-        [22,"USD/JPY",2009-05-01 00:00:00, 102.540000, 102.580000,"D"]
-        ==> [2009.05.01_00:00:00,000, 102.540000,102.580000, 102.540000,102.580000]
-        ==> [1241136000296.000000, 14365.0, 000.0, 98.89, 98.902, 98.887, 98.899] '''
+    Ex: [2009-05-01 00:00:00, ALL, 2] 
+        ==> [1241136000296.000000, 14365.0, 000.0, ALL, 2] '''
      
     # convert the back flash with forward flash (just in case)
     folder_name = convert_backflash2forwardflash(folder_name)
@@ -199,36 +188,16 @@ def create_multiple_tick_data_from_wholefolder_gaincapital_format(folder_name):
         ifile = open(file_, "rU")
         reader = csv.reader(ifile, delimiter=",")
         
-        # save the first row for analysing
-        previous_row = reader.next()
-           
         # create a new version of row with (GAIN Capital Tick Data Format)
         for row in reader:
         
-            new_row = (','. join([str(j) for j in create_a_new_row_gaincapital_format(previous_row)])
-#                        + ',' 
-#                        + ','. join([str(j) for j in create_a_new_row_gaincapital_format(row)])
+            new_row = (','. join([str(j) for j in create_a_new_row_forexfactory_format(row)])
                        + "\n")
             
-            # write to CSV the new row: [Date_Time, Day, Millisecond, Bid, Ask, Date_Time_NextTick, Day_NextTick, Millisecond_NextTick, Bid_NextTick, Ak_NextTick]
+            # write to CSV the new row: [Date_Time, Date, Time, Symbol, Impact Level]
             csv_new_row_write.write(new_row)
              
-            # --> save the current row
-            previous_row = row
-               
         ifile.close()
-       
-#         # create the last row
-#         last_row = [DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT]
-         
-        # create a new version of last row (GAIN Capital Tick Data Format)
-        new_row = (','. join([str(j) for j in create_a_new_row_gaincapital_format(previous_row)]) 
-#                        + ',' 
-#                        + ','. join([str(j) for j in last_row])
-                       + "\n")
-            
-        # write to CSV the last new row: [Date_Time, Day, Millisecond, Bid, Ask, Date_Time_NextTick, Day_NextTick, Millisecond_NextTick, Bid_NextTick, Ak_NextTick]
-        csv_new_row_write.write(new_row)
        
         file_index += DEFAULT_SECOND_NUMBER_INT
            
@@ -238,17 +207,11 @@ def create_multiple_tick_data_from_wholefolder_gaincapital_format(folder_name):
 #===============================================================================
 
 
-# --> format the date time as expected WITH millisecond
-MARKET_TIME_STANDARD = '1970.01.01_00:00:00.000'
-DATETIME_FORMAT = '%Y.%m.%d_%H:%M:%S.%f'
-create_multiple_tick_data_from_wholefolder_gaincapital_format(os.path.dirname(os.getcwd()) 
-                                                              + '/DataHandler/data/input/USDJPY/USDJPY_Original_with_milliseconds')
-
-# # --> format the date time as expected WITHOUT millisecond
-# MARKET_TIME_STANDARD = '1970.01.01_00:00:00'
-# DATETIME_FORMAT = '%Y.%m.%d_%H:%M:%S'
-# create_multiple_tick_data_from_wholefolder_gaincapital_format(os.path.dirname(os.getcwd()) 
-#                                                               + '/DataHandler/data/input/USDJPY/USDJPY_Original_without_milliseconds')
+# --> format the date time as expected WITHOUT millisecond
+MARKET_TIME_STANDARD = '1970.01.01_00:00:00'
+DATETIME_FORMAT = '%Y.%m.%d_%H:%M:%S'
+create_multiple_calendar_data_from_wholefolder_forexfactory_format(os.path.dirname(os.getcwd()) 
+                                                              + '/DataHandler/data/input/economic_calendar_01Jan2007_18Apr2014_original')
 
 # import os
 # import glob

@@ -48,12 +48,15 @@ TP_COL_INDEX = 9
 PROFIT_COL_INDEX = 10
 BALANCE_COL_INDEX = 11
 
-# HEADER_TICK_DATA = [Date_Time, Day, Second, Bid, Ask]
+# HEADER_TICK_DATA = [Date_Time, Date, Time, Bid, Ask]
+# CALENDAR_DATA = [Date_Time, Date, Time, Symbol, Impact]
 DATETIME_COL_INDEX = 0
 DAY_COL_INDEX = 1
 TIME_COL_INDEX = 2
 BID_COL_INDEX = 3
 ASK_COL_INDEX = 4
+SYMBOL_COL_INDEX = 3
+IMPACT_COL_INDEX = 4
 
 # Time frame of each period in seconds
 PERIOD_M1 = 60.00
@@ -69,13 +72,19 @@ PERIOD_MN = 1728000.00
 TIME_FRAME = PERIOD_H1
 SYMBOL = 'USDJPY'
 QUOTE_CURRENCY = 'JPY'
+BASE_CURRENCY = 'USD'
+ALL_CURRENCY = 'ALL'
 
 import os
 SCR_DIR_PATH = os.path.dirname(os.getcwd())
 FOLDER_DATA_INPUT = SCR_DIR_PATH + '/DataHandler/data/input/'
 FOLDER_DATA_OUTPUT = SCR_DIR_PATH + '/DataHandler/data/output/'
+FOLDER_TICK_DATA_ORIGINAL = '/USDJPY_GAINCapital_Original'
 FOLDER_TICK_DATA_MODIFIED = '/USDJPY_GAINCapital_Modified'
+FOLDER_CALENDAR_DATA_ORIGINAL = 'economic_calendar_01Jan2007_18Apr2014_original'
+FOLDER_CALENDAR_DATA_MODIFIED = 'economic_calendar_01Jan2007_18Apr2014_modified/'
 
+FILENAME_CALENDAR_DATA = '_NewsEvents_01Jan2007_18Apr2014.csv'
 FILENAME_TICK_DATA = '/USDJPY-2009-05.csv'
 FILENAME_PARAMETER_DEFAULT = 'default_parameters.csv'
 FILENAME_PARAMETER_SETTING_2 = 'parameters_setting_2.csv'
@@ -127,7 +136,7 @@ import csv
 import logging
 import glob
 import _strptime
-from datetime import datetime
+from datetime import datetime, date
 from os import path, remove
 from decimal import Decimal
 from math import factorial as f
@@ -197,6 +206,27 @@ def merge_2parametes_array_data(old_array, new_array):
 
 
 #===============================================================================
+def combine_2arrays_data(array_1, array_2):
+    
+    data_col = len(array_1[DEFAULT_NUMBER_INT]) 
+    data_row = len(array_1) + len(array_2)
+    new_array = [["" for x in range(data_col)] for y in range(data_row)] 
+    
+    row_count = DEFAULT_NUMBER_INT
+    for x in range(len(array_1)):
+        for y in range(data_col):
+            new_array[row_count][y] = array_1[x][y]
+        row_count += DEFAULT_SECOND_NUMBER_INT
+        
+    for x in range(len(array_2)):
+        for y in range(data_col):
+            new_array[row_count][y] = array_2[x][y]
+        row_count += DEFAULT_SECOND_NUMBER_INT
+        
+    return new_array
+
+
+#===============================================================================
 def load_csv2dataframe(file_name):
     
     # convert the back flash with forward flash (just in case)
@@ -246,8 +276,8 @@ def convert_backflash2forwardflash_change_output_folder(backflash_path):
 #===============================================================================
 def create_a_new_row_gaincapital_format(row):
     ''' For GAIN Capital Tick Data Format. 
-    ==> Analyze the string separated by Space to get Date, Time, Ask, Bid and then create a new version 
-    of that row as Date_Time, Date, Time, Ask, Bid, Ask_NextTick (from next row), Bid_NextTick (from next row) 
+    ==> Analyze the string separated by Space to get [Date, Time, Ask, Bid] and then create a new version 
+    of that row as [Date_Time, Date, Time, Bid, Ask] 
     Ex: [4,"USD/JPY",2009-05-01 00:00:00, 102.540000, 102.580000,"D"]
         [22,"USD/JPY",2009-05-01 00:00:00, 102.540000, 102.580000,"D"]
         ==> [2009.05.01_00:00:00,000, 102.540000,102.580000, 102.540000,102.580000]
@@ -258,7 +288,7 @@ def create_a_new_row_gaincapital_format(row):
 #     bid_col_index = 3
 #     ask_col_index = 4
     
-    # GAIN Capital tick data from 2010 to 2016
+    # GAIN Capital tick data from 2010 to 2017
     datetime_col_index = 3
     bid_col_index = 4
     ask_col_index = 5
@@ -323,36 +353,16 @@ def create_multiple_tick_data_from_wholefolder_gaincapital_format(folder_name):
         ifile = open(file_, "rU")
         reader = csv.reader(ifile, delimiter=",")
         
-        # save the first row for analysing
-        previous_row = reader.next()
-           
         # create a new version of row with (GAIN Capital Tick Data Format)
         for row in reader:
         
-            new_row = (','. join([str(j) for j in create_a_new_row_gaincapital_format(previous_row)])
-#                        + ',' 
-#                        + ','. join([str(j) for j in create_a_new_row_gaincapital_format(row)])
+            new_row = (','. join([str(j) for j in create_a_new_row_gaincapital_format(row)])
                        + "\n")
             
-            # write to CSV the new row: [Date_Time, Day, Millisecond, Bid, Ask, Date_Time_NextTick, Day_NextTick, Millisecond_NextTick, Bid_NextTick, Ak_NextTick]
+            # write to CSV the new row: [Date_Time, Date, Time, Bid, Ask]
             csv_new_row_write.write(new_row)
              
-            # --> save the current row
-            previous_row = row
-               
         ifile.close()
-       
-#         # create the last row
-#         last_row = [DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT, DEFAULT_NUMBER_FLOAT]
-         
-        # create a new version of last row (GAIN Capital Tick Data Format)
-        new_row = (','. join([str(j) for j in create_a_new_row_gaincapital_format(previous_row)]) 
-#                        + ',' 
-#                        + ','. join([str(j) for j in last_row])
-                       + "\n")
-            
-        # write to CSV the last new row: [Date_Time, Day, Millisecond, Bid, Ask, Date_Time_NextTick, Day_NextTick, Millisecond_NextTick, Bid_NextTick, Ak_NextTick]
-        csv_new_row_write.write(new_row)
        
         file_index += DEFAULT_SECOND_NUMBER_INT
            
@@ -360,6 +370,92 @@ def create_multiple_tick_data_from_wholefolder_gaincapital_format(folder_name):
     print("{0} ==> Completed {1} files!!!".format(time_stamp, file_index - DEFAULT_SECOND_NUMBER_INT))
 
 
+#===============================================================================
+def create_a_new_row_forexfactory_format(row):
+    ''' For FOREXFACTORY Calendar Data Format. 
+    ==> Analyze the string separated by Space to get [Date Time, Symbol, Impact Level] and then create a new version 
+    of that row as [Date_Time, Date, Time, Symbol, Impact Level]
+    Ex: [2009-05-01 00:00:00, ALL, 2] 
+        ==> [1241136000296.0, 14365.0, 000.0, ALL, 2] '''
+    
+    # GAIN Capital tick data from 2007 to 2014
+    datetime_col_index = 0
+    symbol_col_index = 1
+    impact_col_index = 2
+    
+    if (row[datetime_col_index] != '0'):
+        # --> get the part BEFORE (Date) and AFTER (Time) the Space
+        split_space = row[datetime_col_index].split(' ')
+         
+        date_part = split_space[DEFAULT_NUMBER_INT]
+        time_second_part = split_space[DEFAULT_SECOND_NUMBER_INT]
+         
+        # --> format the date time as expected WITHOUT millisecond
+        date_modified_part = ('' + date_part.replace('-', '.') + '_' + time_second_part.split('.')[DEFAULT_NUMBER_INT])
+        
+        fdatetime_modified_part = convert_string_datetime2float_no_ms(date_modified_part, MARKET_TIME_STANDARD, DATETIME_FORMAT)
+        fday_modified_part = convert_string_day2float(date_modified_part, MARKET_TIME_STANDARD, DATETIME_FORMAT)
+        ftime_modified_part = convert_string_second2float(date_modified_part, MARKET_TIME_STANDARD, DATETIME_FORMAT)
+        
+        # --> create a new row for Tick data
+        new_row = ['%.1f' % fdatetime_modified_part, fday_modified_part, ftime_modified_part, row[symbol_col_index], float(row[impact_col_index])]
+    else:
+        # --> create a new row for Tick data
+        new_row = row
+    
+    return new_row
+
+ 
+#===============================================================================
+def create_multiple_calendar_data_from_wholefolder_forexfactory_format(folder_name):
+    ''' For FOREXFACTORY Calendar Data Format. 
+    ==> Read each row of all Original Tick data file [Date Time, Symbol, Impact Level], 
+    create a new version of that row, and then
+    combine them by writing each new version row into 1 new CSV file 
+    Ex: [2009-05-01 00:00:00, ALL, 2] 
+        ==> [1241136000296.000000, 14365.0, 000.0, ALL, 2] '''
+     
+    # convert the back flash with forward flash (just in case)
+    folder_name = convert_backflash2forwardflash(folder_name)
+    allFiles = glob.glob(folder_name + '/*.csv')
+     
+    file_index = DEFAULT_SECOND_NUMBER_INT
+    for file_ in allFiles:
+        time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+        file_basename = os.path.basename(file_)
+        print("{0} ==> processing file {1}: {2} ...".format(time_stamp, file_index, file_basename))
+         
+        file_name = convert_backflash2forwardflash_change_output_folder(file_)
+          
+        if (file_index % 10 == DEFAULT_NUMBER_INT):
+            perc = round((float(file_index) / float(len(allFiles))) * float(100), 2)
+            time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+            print("{0} ... ==> processing {1}% of the data...".format(time_stamp, perc))
+           
+        # write an array to a CSV file
+        csv_new_row_write = open(file_name, "w")  # "w" indicates that you're writing strings to the file
+               
+        # open the CSV file
+        ifile = open(file_, "rU")
+        reader = csv.reader(ifile, delimiter=",")
+        
+        # create a new version of row with (GAIN Capital Tick Data Format)
+        for row in reader:
+        
+            new_row = (','. join([str(j) for j in create_a_new_row_forexfactory_format(row)])
+                       + "\n")
+            
+            # write to CSV the new row: [Date_Time, Date, Time, Symbol, Impact Level]
+            csv_new_row_write.write(new_row)
+             
+        ifile.close()
+       
+        file_index += DEFAULT_SECOND_NUMBER_INT
+           
+    time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+    print("{0} ==> Completed {1} files!!!".format(time_stamp, file_index - DEFAULT_SECOND_NUMBER_INT))
+
+ 
 #===============================================================================
 def create_a_new_row_pepperstone_format(previous_row, row):
     ''' For Pepperstone Tick Data Format. 
@@ -738,32 +834,33 @@ def write_list_of_dicts_no_header(list_of_dicts, file_name):
 def display_an_array_with_delimiter(array_out, delimiter):
     out_length = len(array_out)
     
-    if out_length <= 100:
+    if out_length == DEFAULT_NUMBER_INT:
+        # print the summary
+        print('[%s rows x %s columns]' % (out_length, out_length))
+    elif out_length <= 100:
         for i in range(out_length):
             sMyArray = [str(j) for j in array_out[i]]
             print(delimiter . join(sMyArray))
-            log.info(delimiter . join(sMyArray))
+        
+        # print the summary
+        print('[%s rows x %s columns]' % (out_length, len(array_out[DEFAULT_NUMBER_INT])))
     else:
         # display 20 first items
         for i in range(20):
             sMyArray = [str(j) for j in array_out[i]]
             print(delimiter . join(sMyArray))
-            log.info(delimiter . join(sMyArray))
             
         print('...    ...    ...    ...    ...    ...    ...')
-        log.info('...    ...    ...    ...    ...    ...    ...')
         
         # display 20 last items
         i = out_length - 20
         while i < out_length:
             sMyArray = [str(j) for j in array_out[i]]
             print(delimiter . join(sMyArray))
-            log.info(delimiter . join(sMyArray))
             i += 1
         
-    # print the summary
-    print('[%s rows x %s columns]' % (out_length, len(array_out[DEFAULT_NUMBER_INT])))
-    log.info('[%s rows x %s columns]' % (out_length, len(array_out[DEFAULT_NUMBER_INT])))
+        # print the summary
+        print('[%s rows x %s columns]' % (out_length, len(array_out[DEFAULT_NUMBER_INT])))
 
 
 #===============================================================================
@@ -902,21 +999,80 @@ def order_delete(self, row_index, array_data):
     else:
         print("There's NO row %s in data." % row_index)
         log.info("There's NO row %s in data." % row_index)
-      
+
+        
+#===============================================================================
+def convert_datetime_back_whole_list(file_name_out):
+    ''' Convert back Date Time from float to normal format. '''
+    
+    # load data from input file
+    data_converted = load_csv2array(file_name_out)
+    
+    for i in range(len(data_converted)):
+        # --> convert day from float
+        scurrentday = date.fromordinal(DATEOFFSET + int(float(data_converted[i][DAY_COL_INDEX])))
+        
+        # slit date into year, month, and day
+        dividend = str(scurrentday).split('-')
+        year = dividend[DEFAULT_NUMBER_INT]
+        month = dividend[DEFAULT_SECOND_NUMBER_INT]
+        day = dividend[DEFAULT_SECOND_NUMBER_INT + DEFAULT_SECOND_NUMBER_INT]
+        
+        # get the day from float number (DATETIME_FORMAT = '%Y.%m.%d_%H:%M:%S')
+        day_converted = year + '.' + month + '.' + day
+
+        # --> convert time from float
+        hour_minute_second = int(float(data_converted[i][TIME_COL_INDEX])) 
+        
+        # --> get the time from float number (DATETIME_FORMAT = '%Y.%m.%d_%H:%M:%S')
+        hour_converted = int(hour_minute_second / SECONDS_OF_ANHOUR)
+        minute_converted = int(hour_minute_second % SECONDS_OF_ANHOUR / SECONDS_OF_AMINUTE)
+        second_converted = int(hour_minute_second % SECONDS_OF_ANHOUR % SECONDS_OF_AMINUTE)
+        
+        # adjust the hour for output when less than 10 hours
+        if (hour_converted < 10):
+            shour_converted = '0' + str(hour_converted)
+        else:
+            shour_converted = str(hour_converted)
+        
+        # adjust the minute for output when less than 10 hours
+        if (minute_converted < 10):
+            sminute_converted = '0' + str(minute_converted)
+        else:
+            sminute_converted = str(minute_converted)
+        
+        # adjust the second for output when less than 10 hours
+        if (second_converted < 10):
+            ssecond_converted = '0' + str(second_converted)
+        else:
+            ssecond_converted = str(second_converted)
+        
+        time_converted = shour_converted + ':' + sminute_converted + ':' + ssecond_converted
+        
+        # --> write all date and time converted into the output CSV file
+        data_converted[i][DATETIME_COL_INDEX] = day_converted + '_' + time_converted
+        data_converted[i][DAY_COL_INDEX] = day_converted
+        data_converted[i][TIME_COL_INDEX] = time_converted
+        
+    return data_converted
+        
 #===============================================================================
 # # Create TICK_DATA with Modification from Original Tick Data CSV file WITH milliseconds
-# # --> format the date time as expected WITH millisecond
+# # --> format the date time as expected WITH millisecond (Note: need to do 2 time with columns format from from 2005 to 2009 VS from 2010 to 2017)
 # FOLDER_TICK_DATA_ORIGINAL = '/USDJPY_GAINCapital_Original_with_milliseconds'
 # MARKET_TIME_STANDARD = '1970.01.01_00:00:00.000'
 # DATETIME_FORMAT = '%Y.%m.%d_%H:%M:%S.%f'
 # create_multiple_tick_data_from_wholefolder_gaincapital_format(FOLDER_DATA_INPUT + SYMBOL + FOLDER_TICK_DATA_ORIGINAL)
-#
+# 
 # # Create TICK_DATA with Modification from Original Tick Data CSV file WITHOUT milliseconds
-# # --> format the date time as expected WITHOUT millisecond
+# # --> format the date time as expected WITHOUT millisecond (Note: need to do 2 time with columns format from from 2005 to 2009 VS from 2010 to 2017)
 # FOLDER_TICK_DATA_ORIGINAL = '/USDJPY_GAINCapital_Original_without_milliseconds'
 # MARKET_TIME_STANDARD = '1970.01.01_00:00:00'
 # DATETIME_FORMAT = '%Y.%m.%d_%H:%M:%S'
 # create_multiple_tick_data_from_wholefolder_gaincapital_format(FOLDER_DATA_INPUT + SYMBOL + FOLDER_TICK_DATA_ORIGINAL)
+# 
+# # Create CALENDAR_DATA with Modification from Original Calendar Data CSV file WITHOUT milliseconds
+# create_multiple_calendar_data_from_wholefolder_forexfactory_format(FOLDER_DATA_INPUT + FOLDER_CALENDAR_DATA_ORIGINAL)
 
 
 time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
@@ -945,4 +1101,41 @@ print("%s ==> Create OPTIMIZED_PARAMETERS_DATA data: %s ..." % (time_stamp, FOLD
 print('===============================================================================')
 # Create OPTIMIZED_PARAMETERS_DATA
 OPTIMIZED_PARAMETERS_DATA = get_subset_data(DEFAULT_PARAMETERS_DATA, OPTIMIZE_PARAMETERS_LIST)
+
+time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+log.info("==> Load CALENDAR_DATA: %s ..." % (FOLDER_DATA_INPUT + FILENAME_PARAMETER_SETTING_2))
+log.info('===============================================================================')
+print("%s ==> Load CALENDAR_DATA: %s ..." % (time_stamp, FOLDER_DATA_INPUT + FILENAME_PARAMETER_SETTING_2))
+print('===============================================================================')
+
+# Create CALENDAR_DATA with CSV file
+# --> calendar of all symbols 
+CALENDAR_ALL_SYMBOLS_DATA = load_csv2array(FOLDER_DATA_INPUT + FOLDER_CALENDAR_DATA_MODIFIED + 
+                                           ALL_CURRENCY + FILENAME_CALENDAR_DATA)
+
+# --> calendar of base symbol 
+file_name_base_currency = str(FOLDER_DATA_INPUT + FOLDER_CALENDAR_DATA_MODIFIED + 
+                              BASE_CURRENCY + FILENAME_CALENDAR_DATA)
+if path.isfile(file_name_base_currency):
+    CALENDAR_BASE_SYMBOL_DATA = load_csv2array(file_name_base_currency)
+else:
+    CALENDAR_BASE_SYMBOL_DATA = []
+
+# --> calendar of quote symbol 
+file_name_quote_currency = str(FOLDER_DATA_INPUT + FOLDER_CALENDAR_DATA_MODIFIED + 
+                               QUOTE_CURRENCY + FILENAME_CALENDAR_DATA)
+if path.isfile(file_name_quote_currency):
+    CALENDAR_QUOTE_SYMBOL_DATA = load_csv2array(file_name_quote_currency)
+else:
+    CALENDAR_QUOTE_SYMBOL_DATA = []
+
+display_an_array_with_delimiter(CALENDAR_ALL_SYMBOLS_DATA, ' ')
+display_an_array_with_delimiter(CALENDAR_BASE_SYMBOL_DATA, ' ')
+display_an_array_with_delimiter(CALENDAR_QUOTE_SYMBOL_DATA, ' ')
+    
+time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
+log.info("==> All hard coded data have been loaded!!!")
+log.info('===============================================================================')
+print("%s ==> All hard coded data have been loaded!!!" % (time_stamp))
+print('===============================================================================')
 

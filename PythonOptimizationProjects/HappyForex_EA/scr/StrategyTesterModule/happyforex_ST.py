@@ -27,8 +27,12 @@ from DataHandler.hardcoded_data import DEFAULT_NUMBER_INT, DEPOSIT, DEFAULT_SECO
     write_value_of_dict2csv_no_header, load_csv2array, point_of_symbol, digit_of_symbol, \
     convert_backflash2forwardflash, combine_all_files_in_a_folder, \
     DEFAULT_NUMBER_FLOAT, DEFAULT_SECOND_NUMBER_FLOAT, TIME_FRAME, \
-    DEFAULT_PARAMETERS_DATA, TP_COL_INDEX
+    DEFAULT_PARAMETERS_DATA, TP_COL_INDEX, CALENDAR_ALL_SYMBOLS_DATA, \
+    CALENDAR_BASE_SYMBOL_DATA, CALENDAR_QUOTE_SYMBOL_DATA, IMPACT_COL_INDEX, \
+    write_array2csv_with_delimiter_no_header, convert_datetime_back_whole_list
+    
 import multiprocessing
+from astropy.units import day
     
 log = logging.getLogger(__name__)
 
@@ -91,7 +95,7 @@ class HappyForexEA(object):
         self.USENEWSFILTER = False
         self.MINSBEFORENEWS = DEFAULT_NUMBER_INT
         self.MINSAFTERNEWS = DEFAULT_NUMBER_INT
-        self.NEWSIMPACT = DEFAULT_NUMBER_INT
+        self.NEWSIMPACT = DEFAULT_NUMBER_FLOAT
         self.K = ""
         self.FILTERING = False
         self.L = ""
@@ -130,6 +134,11 @@ class HappyForexEA(object):
         self.balance = DEPOSIT
         self.CurrentProfit = DEFAULT_NUMBER_FLOAT  # current profit of all Opened orders (OP_BUY & OP_SELL)
         self.equity = self.balance + self.CurrentProfit
+        
+        self.EVENTS_OF_CALENDAR_ALL_SYMBOLS = []
+        self.EVENTS_OF_CALENDAR_BASE_SYMBOLS = []
+        self.EVENTS_OF_CALENDAR_QUOTE_SYMBOLS = []
+        self. PARAMETERS_DATA = []
         
         # Create dictionaries for storing Closed, Deleted, and Opened/Pending orders with KEY is OrderID
         self.ORDER_CLOSED_DICT = {} 
@@ -228,7 +237,7 @@ class HappyForexEA(object):
         self.USENEWSFILTER = False
         self.MINSBEFORENEWS = DEFAULT_NUMBER_INT
         self.MINSAFTERNEWS = DEFAULT_NUMBER_INT
-        self.NEWSIMPACT = DEFAULT_NUMBER_INT
+        self.NEWSIMPACT = DEFAULT_NUMBER_FLOAT
         self.K = ""
         self.FILTERING = False
         self.L = ""
@@ -267,6 +276,11 @@ class HappyForexEA(object):
         self.balance = DEPOSIT
         self.CurrentProfit = DEFAULT_NUMBER_FLOAT  # current profit of all Opened orders (OP_BUY & OP_SELL)
         self.equity = self.balance + self.CurrentProfit
+        
+        self.EVENTS_OF_CALENDAR_ALL_SYMBOLS = []
+        self.EVENTS_OF_CALENDAR_BASE_SYMBOLS = []
+        self.EVENTS_OF_CALENDAR_QUOTE_SYMBOLS = []
+        self. PARAMETERS_DATA = []
         
         # Create a dictionary (as a hash-map) for storing Closed, Deleted, and Opened/Pending orders with KEY is OrderID
         self.ORDER_CLOSED_DICT = {} 
@@ -973,12 +987,12 @@ class HappyForexEA(object):
             self.IfOrderDoesNotExist11_6()
             self.IfOrderDoesNotExist12_6()
         
-        # TODO: TESTING only --> START here: 2 functions lead to placing Pending orders 
+        # TODO: DEMO --> START here: 2 functions lead to placing Pending orders 
         elif (ATRPrePips1 == DEFAULT_NUMBER_FLOAT and ATRPrePips2 == DEFAULT_NUMBER_FLOAT):
             ATR = "Not ATR filtering!"
             self.IfOrderDoesNotExist11_6()
             self.IfOrderDoesNotExist12_6()
-        # TESTING only --> END here
+        # DEMO --> END here
         else:
             ATR = "ATR Filtering!"
             if((self.DeletePOATR == True) and (self.FILTERING == True)):
@@ -1043,7 +1057,48 @@ class HappyForexEA(object):
         if (orderType == OP_BUY or self.FirstTime35):
             self.FirstTime35 = False
             self.DeletePendingOrder18_3()
+
+    #===============================================================================
+    def get_previous_event_minute(self, current_minute, list_data):   
+        ''' Get the previous minute of Calendar data comparing with Tick Data '''
+             
+        previous_event_minute = DEFAULT_NUMBER_INT
+        
+        for row_index in range(len(list_data)):
+            time = int(list_data[row_index][TIME_COL_INDEX])
+            minute_calendar = int(time % SECONDS_OF_ANHOUR / SECONDS_OF_AMINUTE)
             
+            # stop when minute of Calendar data is greater than current minute of Tick data
+            if (minute_calendar > current_minute
+                and row_index != DEFAULT_NUMBER_INT):
+                
+                # get previous_event_minute
+                previous_time = int(list_data[row_index][TIME_COL_INDEX])
+                previous_event_minute = int(previous_time % SECONDS_OF_ANHOUR / SECONDS_OF_AMINUTE)   
+        
+        return previous_event_minute
+    
+    #===============================================================================
+    def get_next_event_minute(self, current_minute, list_data):        
+        ''' Get the next minute and its index of Calendar data comparing with Tick Data '''
+        
+        next_event_minute = DEFAULT_NUMBER_INT
+        next_event_minute_index = -1
+        
+        for row_index in range(len(list_data)):
+            time = int(list_data[row_index][TIME_COL_INDEX])
+            minute_calendar = int(time % SECONDS_OF_ANHOUR / SECONDS_OF_AMINUTE)
+            
+            # stop when minute of Calendar data is less than current minute of Tick data
+            if (minute_calendar > current_minute
+                and row_index != DEFAULT_NUMBER_INT):
+                
+                # get next_event_minute
+                next_event_minute = minute_calendar
+                next_event_minute_index = row_index   
+        
+        return [next_event_minute, next_event_minute_index]
+    
     #===============================================================================
     def NewsTime_4(self):
         ''' NewsTime_4. '''
@@ -1052,23 +1107,170 @@ class HappyForexEA(object):
         PrevMinute = -1
         
         # set default values
-        minutesSincePrevEvent = minutesUntilNextEvent = impactOfNextEvent = DEFAULT_NUMBER_INT
+        minutesSincePrevEvent = DEFAULT_NUMBER_INT
+        minutesUntilNextEvent = DEFAULT_NUMBER_INT
+        impactOfNextEvent = DEFAULT_NUMBER_INT
         
         if (self.TimeMinute_3() != PrevMinute):     
             
             PrevMinute = self.TimeMinute_3()
             
-#             # TODO: WORK OUT iCustom (Calculates the specified custom indicator and returns its value) for FFCal indicator
-#             minutesSincePrevEvent = iCustom(NULL, 0, "FFCal", True, True, False, True, True, 1, 0)
-#             minutesUntilNextEvent = iCustom(NULL, 0, "FFCal", True, True, False, True, True, 1, 1)
+            # Check the Calendar Event of ALL SYMBOLS
+            if (self.EVENTS_OF_CALENDAR_ALL_SYMBOLS[DEFAULT_NUMBER_INT] != DEFAULT_NUMBER_INT):
+                # get minutesSincePrevEvent
+                previous_event_minute = self.get_previous_event_minute(PrevMinute, self.EVENTS_OF_CALENDAR_ALL_SYMBOLS[DEFAULT_NUMBER_INT])
+                minutesSincePrevEvent = PrevMinute - previous_event_minute 
             
-            if ((minutesUntilNextEvent <= self.MINSBEFORENEWS) or (minutesSincePrevEvent <= self.MINSAFTERNEWS)):
-#                 # TODO: WORK OUT iCustom() for FFCal indicator
-#                 impactOfNextEvent = iCustom(NULL, 0, "FFCal", True, True, False, True, True, 2, 1)
+                # get nminutesUntilNextEvent
+                [next_event_minute, next_event_minute_index] = self.get_next_event_minute(PrevMinute, self.EVENTS_OF_CALENDAR_ALL_SYMBOLS[DEFAULT_NUMBER_INT]) 
+                minutesUntilNextEvent = next_event_minute - PrevMinute
                 
-                if (impactOfNextEvent >= self.NEWSIMPACT): 
-                    News = True
-        
+                # get value of News impact
+                if (((minutesUntilNextEvent <= self.MINSBEFORENEWS) 
+                     or (minutesSincePrevEvent <= self.MINSAFTERNEWS)) 
+                    and next_event_minute_index != -1):
+                    
+                    next_events_list = self.EVENTS_OF_CALENDAR_ALL_SYMBOLS[DEFAULT_NUMBER_INT]
+                    impactOfNextEvent = float(next_events_list[next_event_minute_index][IMPACT_COL_INDEX])
+                    if (impactOfNextEvent >= self.NEWSIMPACT): 
+                        News = True
+            else:
+                # get minutesSincePrevEvent
+                if (self.EVENTS_OF_CALENDAR_ALL_SYMBOLS[DEFAULT_SECOND_NUMBER_INT + DEFAULT_SECOND_NUMBER_INT] != DEFAULT_NUMBER_INT):
+                    previous_events_list = self.EVENTS_OF_CALENDAR_ALL_SYMBOLS[DEFAULT_SECOND_NUMBER_INT + DEFAULT_SECOND_NUMBER_INT]
+                    time = int(previous_events_list[DEFAULT_NUMBER_INT][TIME_COL_INDEX])
+                    previous_event_minute = int(time % SECONDS_OF_ANHOUR / SECONDS_OF_AMINUTE)
+                else:
+                    previous_event_minute = DEFAULT_NUMBER_INT
+                    
+                minutesSincePrevEvent = PrevMinute - previous_event_minute 
+            
+                # get nminutesUntilNextEvent
+                if (self.EVENTS_OF_CALENDAR_ALL_SYMBOLS[DEFAULT_SECOND_NUMBER_INT] != DEFAULT_NUMBER_INT):
+                    next_events_list = self.EVENTS_OF_CALENDAR_ALL_SYMBOLS[DEFAULT_SECOND_NUMBER_INT]
+                    time = int(next_events_list[DEFAULT_NUMBER_INT][TIME_COL_INDEX])
+                    next_event_minute = int(time % SECONDS_OF_ANHOUR / SECONDS_OF_AMINUTE)
+                else:
+                    next_event_minute = DEFAULT_NUMBER_INT
+                
+                next_event_minute_index = DEFAULT_NUMBER_INT 
+                minutesUntilNextEvent = next_event_minute - PrevMinute
+                
+                # get value of News impact
+                if (((minutesUntilNextEvent <= self.MINSBEFORENEWS) 
+                     or (minutesSincePrevEvent <= self.MINSAFTERNEWS)) 
+                    and next_event_minute_index != -1):
+                    
+                    next_events_list = self.EVENTS_OF_CALENDAR_ALL_SYMBOLS[DEFAULT_SECOND_NUMBER_INT]
+                    impactOfNextEvent = float(next_events_list[next_event_minute_index][IMPACT_COL_INDEX])
+                    if (impactOfNextEvent >= self.NEWSIMPACT): 
+                        News = True
+            
+            # Check the Calendar Event of BASE SYMBOL
+            if (News == False):
+                if (self.EVENTS_OF_CALENDAR_BASE_SYMBOLS[DEFAULT_NUMBER_INT] != DEFAULT_NUMBER_INT):
+                    # get minutesSincePrevEvent
+                    previous_event_minute = self.get_previous_event_minute(PrevMinute, self.EVENTS_OF_CALENDAR_BASE_SYMBOLS[DEFAULT_NUMBER_INT])
+                    minutesSincePrevEvent = PrevMinute - previous_event_minute 
+                
+                    # get nminutesUntilNextEvent
+                    [next_event_minute, next_event_minute_index] = self.get_next_event_minute(PrevMinute, self.EVENTS_OF_CALENDAR_BASE_SYMBOLS[DEFAULT_NUMBER_INT]) 
+                    minutesUntilNextEvent = next_event_minute - PrevMinute
+                    
+                    # get value of News impact
+                    if (((minutesUntilNextEvent <= self.MINSBEFORENEWS) 
+                         or (minutesSincePrevEvent <= self.MINSAFTERNEWS)) 
+                        and next_event_minute_index != -1):
+                        
+                        next_events_list = self.EVENTS_OF_CALENDAR_BASE_SYMBOLS[DEFAULT_NUMBER_INT]
+                        impactOfNextEvent = float(next_events_list[next_event_minute_index][IMPACT_COL_INDEX])
+                        if (impactOfNextEvent >= self.NEWSIMPACT): 
+                            News = True
+                else:
+                    # get minutesSincePrevEvent
+                    if (self.EVENTS_OF_CALENDAR_BASE_SYMBOLS[DEFAULT_SECOND_NUMBER_INT + DEFAULT_SECOND_NUMBER_INT] != DEFAULT_NUMBER_INT):
+                        previous_events_list = self.EVENTS_OF_CALENDAR_BASE_SYMBOLS[DEFAULT_SECOND_NUMBER_INT + DEFAULT_SECOND_NUMBER_INT]
+                        time = int(previous_events_list[DEFAULT_NUMBER_INT][TIME_COL_INDEX])
+                        previous_event_minute = int(time % SECONDS_OF_ANHOUR / SECONDS_OF_AMINUTE)
+                    else:
+                        previous_event_minute = DEFAULT_NUMBER_INT
+                        
+                    minutesSincePrevEvent = PrevMinute - previous_event_minute 
+                
+                    # get nminutesUntilNextEvent
+                    if (self.EVENTS_OF_CALENDAR_BASE_SYMBOLS[DEFAULT_SECOND_NUMBER_INT] != DEFAULT_NUMBER_INT):
+                        next_events_list = self.EVENTS_OF_CALENDAR_BASE_SYMBOLS[DEFAULT_SECOND_NUMBER_INT]
+                        time = int(next_events_list[DEFAULT_NUMBER_INT][TIME_COL_INDEX])
+                        next_event_minute = int(time % SECONDS_OF_ANHOUR / SECONDS_OF_AMINUTE)
+                    else:
+                        next_event_minute = DEFAULT_NUMBER_INT
+                    
+                    next_event_minute_index = DEFAULT_NUMBER_INT 
+                    minutesUntilNextEvent = next_event_minute - PrevMinute
+                    
+                    # get value of News impact
+                    if ((minutesUntilNextEvent <= self.MINSBEFORENEWS 
+                         or minutesSincePrevEvent <= self.MINSAFTERNEWS) 
+                        and next_event_minute_index != -1):
+                        
+                        next_events_list = self.EVENTS_OF_CALENDAR_BASE_SYMBOLS[DEFAULT_SECOND_NUMBER_INT]
+                        impactOfNextEvent = float(next_events_list[next_event_minute_index][IMPACT_COL_INDEX])
+                        if (impactOfNextEvent >= self.NEWSIMPACT): 
+                            News = True
+             
+            # Check the Calendar Event of QUOTE SYMBOL
+            if (News == False):
+                if (self.EVENTS_OF_CALENDAR_QUOTE_SYMBOLS[DEFAULT_NUMBER_INT] != DEFAULT_NUMBER_INT):
+                    # get minutesSincePrevEvent
+                    previous_event_minute = self.get_previous_event_minute(PrevMinute, self.EVENTS_OF_CALENDAR_QUOTE_SYMBOLS[DEFAULT_NUMBER_INT])
+                    minutesSincePrevEvent = PrevMinute - previous_event_minute 
+                
+                    # get nminutesUntilNextEvent
+                    [next_event_minute, next_event_minute_index] = self.get_next_event_minute(PrevMinute, self.EVENTS_OF_CALENDAR_QUOTE_SYMBOLS[DEFAULT_NUMBER_INT]) 
+                    minutesUntilNextEvent = next_event_minute - PrevMinute
+                    
+                    # get value of News impact
+                    if (((minutesUntilNextEvent <= self.MINSBEFORENEWS) 
+                         or (minutesSincePrevEvent <= self.MINSAFTERNEWS)) 
+                        and next_event_minute_index != -1):
+                        
+                        next_events_list = self.EVENTS_OF_CALENDAR_QUOTE_SYMBOLS[DEFAULT_NUMBER_INT]
+                        impactOfNextEvent = float(next_events_list[next_event_minute_index][IMPACT_COL_INDEX])
+                        if (impactOfNextEvent >= self.NEWSIMPACT): 
+                            News = True
+                    
+                else:
+                    # get minutesSincePrevEvent
+                    if (self.EVENTS_OF_CALENDAR_QUOTE_SYMBOLS[DEFAULT_SECOND_NUMBER_INT + DEFAULT_SECOND_NUMBER_INT] != DEFAULT_NUMBER_INT):
+                        previous_events_list = self.EVENTS_OF_CALENDAR_QUOTE_SYMBOLS[DEFAULT_SECOND_NUMBER_INT + DEFAULT_SECOND_NUMBER_INT]
+                        time = int(previous_events_list[DEFAULT_NUMBER_INT][TIME_COL_INDEX])
+                        previous_event_minute = int(time % SECONDS_OF_ANHOUR / SECONDS_OF_AMINUTE)
+                    else:
+                        previous_event_minute = DEFAULT_NUMBER_INT
+                        
+                    minutesSincePrevEvent = PrevMinute - previous_event_minute 
+                
+                    # get nminutesUntilNextEvent
+                    if (self.EVENTS_OF_CALENDAR_QUOTE_SYMBOLS[DEFAULT_SECOND_NUMBER_INT] != DEFAULT_NUMBER_INT):
+                        next_events_list = self.EVENTS_OF_CALENDAR_QUOTE_SYMBOLS[DEFAULT_SECOND_NUMBER_INT]
+                        time = int(next_events_list[DEFAULT_NUMBER_INT][TIME_COL_INDEX])
+                        next_event_minute = int(time % SECONDS_OF_ANHOUR / SECONDS_OF_AMINUTE)
+                    else:
+                        next_event_minute = DEFAULT_NUMBER_INT
+                    
+                    next_event_minute_index = DEFAULT_NUMBER_INT 
+                    minutesUntilNextEvent = next_event_minute - PrevMinute
+                    
+                    # get value of News impact
+                    if ((minutesUntilNextEvent <= self.MINSBEFORENEWS 
+                         or minutesSincePrevEvent <= self.MINSAFTERNEWS) 
+                        and next_event_minute_index != -1):
+                        
+                        next_events_list = self.EVENTS_OF_CALENDAR_QUOTE_SYMBOLS[DEFAULT_SECOND_NUMBER_INT]
+                        impactOfNextEvent = float(next_events_list[next_event_minute_index][IMPACT_COL_INDEX])
+                        if (impactOfNextEvent >= self.NEWSIMPACT): 
+                            News = True
+                        
         return News
 
     #===============================================================================
@@ -1230,7 +1432,6 @@ class HappyForexEA(object):
         self.AtCertainTime6_2()
         
         # TODO: Extra Functions for having Open/Market orders: 
-#         self.UpdateProfit_2()
         self.ModifyPendingOrder_2()
         
         # function for closing orders
@@ -1253,7 +1454,7 @@ class HappyForexEA(object):
             if  (order_type == OP_BUY or order_type == OP_SELL):
                 # --> Close a specific old_opended_order in data by deleting this OP_BUY in the Opened and Pending orders pool 
                 # and return new value of order from Opened position to Close position
-                flag_close_delete_all = self.OrderClose_4(order_id, order_type)
+                flag_close_delete_all = self.OrderClose_4(order, order_id, order_type)
                 
                 if (flag_close_delete_all == False):
                     return flag_close_delete_all
@@ -1276,54 +1477,6 @@ class HappyForexEA(object):
             
         return flag_close_delete_all
             
-#     #===============================================================================
-#     def UpdateProfit_2(self):
-#         ''' Update Profit for each Open orders in Opened and Pending orders pool.'''
-#         
-#         # get all Opened and Pending orders in the pool
-#         # ORDER_OPENED_DICT = {order_id: ['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']}
-#         for order_id in self.ORDER_OPENED_DICT.keys():
-#             
-#             new_order = self.ORDER_OPENED_DICT[order_id]
-#             order_type = new_order[ORDER_TYPE_COL_INDEX]
-#             
-#             # update Profit for each Open orders when they are OP_BUY or OP_SELL orders 
-#             if  (order_type == OP_BUY or order_type == OP_SELL):
-#                 
-#                 entry_price = new_order[PRICE_ENTRY_COL_INDEX]
-#                 exit_price = DEFAULT_NUMBER_FLOAT
-#                 
-#                 # delete this order in the Opened and Pending orders pool
-#                 flag_deleted = self.OrderDelete_4(order_id, self.ORDER_OPENED_DICT)
-#                
-#                 if (flag_deleted):
-#                     '''When you go long, you enter the market at the ASK price and exit the market at BID price.
-#                     When you go short, you enter the market at the BID price and exit at the ASK price.'''
-#                     # ORDER_OPENED_DICT[] = ['Date_Time', 'Day', 'Time', 'Type', 'OrderID', 'Size', 'EntryPrice', 'ExitPrice', 'SL', 'TP', 'Profit', 'Balance']
-#                     # update the new values for this order 
-#                     
-#                     if  (order_type == OP_BUY):
-#                         exit_price = self.bid_price
-#                     
-#                     elif  (order_type == OP_SELL):
-#                         exit_price = self.ask_price
-#                     
-#                     lots = new_order[LOTS_COL_INDEX]
-#                     profit = self.CalculateProfit_5(entry_price, exit_price, lots, order_type)
-#                     
-#                     new_order[DATETIME_COL_INDEX] = self.current_datetime
-#                     new_order[DAY_COL_INDEX] = self.current_day
-#                     new_order[TIME_COL_INDEX] = self.current_time
-#                     new_order[PROFIT_COL_INDEX] = profit
-#                     new_order[PRICE_ENTRY_COL_INDEX] = entry_price
-#                     new_order[PRICE_EXIT_COL_INDEX] = exit_price
-#                             
-#                     # save back this deleted order in the Opened and Pending orders pool with updated values
-#                     self.OrderAdd_10(order_id, new_order, self.ORDER_OPENED_DICT)
-#         
-#         # update total profit
-#         self.CurrentProfit = self.ProfitCheck_3()
-        
     #===============================================================================
     def CheckEnoughMoney_2(self, order):
         ''' Check if there are enough money in the account for open an order by calculating Equity. '''
@@ -1352,7 +1505,6 @@ class HappyForexEA(object):
         be modified into a market one (opened). '''
         
         if (self.ords_in_a_day >= self.OPENORDERSLIMITDAY):
-#             pass
 #             print("Cannot modify this Pending order due to reaching maximum %s orders per day." % self.OPENORDERSLIMITDAY)
             log.info("Cannot modify this Pending order due to reaching maximum %s orders per day." % self.OPENORDERSLIMITDAY)
         else:
@@ -1583,7 +1735,7 @@ class HappyForexEA(object):
                                   [VALUE_COL_INDEX])
         self.MINSAFTERNEWS = int(PARAMETERS_COMPLETED[minsafternews_row_index]
                                  [VALUE_COL_INDEX])
-        self.NEWSIMPACT = int(PARAMETERS_COMPLETED[newsimpact_row_index]
+        self.NEWSIMPACT = float(PARAMETERS_COMPLETED[newsimpact_row_index]
                               [VALUE_COL_INDEX])
         self.K = str(PARAMETERS_COMPLETED[k_row_index]
                      [VALUE_COL_INDEX])
@@ -1638,7 +1790,54 @@ class HappyForexEA(object):
             self.Time_of_closing_in_hours += HOURS_OF_ADAY
 
     #===============================================================================
+    def get_event_in_a_day(self, current_day, list_data):
+        ''' Get all events happen in a specific day '''
+        
+        event_in_current_day = []
+        event_in_next_day = []
+        event_in_previous_day = []
+        flag_event = False
+
+        for event_index in range(len(list_data)):
+            day = float(list_data[event_index][DAY_COL_INDEX])
+
+            # get all event in the same day            
+            if (day == current_day):
+                event_in_current_day.append(list_data[event_index])
+                flag_event = True 
+            # when there is no same day
+            else:
+                if (flag_event):
+                    break
+                else:
+                    if (day > current_day):
+                        next_day_index = event_index
+                        previous_day_index = event_index - DEFAULT_SECOND_NUMBER_INT
+                        
+                        # get all events of the next available day
+                        current_day = day
+                        while (day == current_day and next_day_index < len(list_data)):
+                            event_in_next_day.append(list_data[next_day_index])
+                            next_day_index += DEFAULT_SECOND_NUMBER_INT
+                            day = float(list_data[next_day_index][DAY_COL_INDEX])
+                            
+                        # get all events of the previous available day
+                        day = float(list_data[previous_day_index][DAY_COL_INDEX])
+                        current_day = day
+                        while (day == current_day and previous_day_index > DEFAULT_NUMBER_INT):
+                            event_in_previous_day.append(list_data[previous_day_index])
+                            previous_day_index -= DEFAULT_SECOND_NUMBER_INT
+                            day = float(list_data[previous_day_index][DAY_COL_INDEX])
+                            
+                        break
+                    else:
+                        pass
+                    
+        return [event_in_current_day, event_in_next_day, event_in_previous_day]
+    
+    #===============================================================================
     def analised_tick_data(self, PARAMETERS_DATA, folder_output, file_):
+        
         # get the file name
         file_name = convert_backflash2forwardflash(file_)
         file_basename = str(os.path.basename(file_))
@@ -1657,6 +1856,11 @@ class HappyForexEA(object):
         self.initilize(PARAMETERS_DATA, DIGITS, POINT)
         
         fprevious_day = float(TICK_DATA[DEFAULT_NUMBER_INT][DAY_COL_INDEX])
+        
+        # get all events of the CALENDAR_DATA
+        self.EVENTS_OF_CALENDAR_ALL_SYMBOLS = self.get_event_in_a_day(fprevious_day, CALENDAR_ALL_SYMBOLS_DATA)
+        self.EVENTS_OF_CALENDAR_BASE_SYMBOLS = self.get_event_in_a_day(fprevious_day, CALENDAR_BASE_SYMBOL_DATA)
+        self.EVENTS_OF_CALENDAR_QUOTE_SYMBOLS = self.get_event_in_a_day(fprevious_day, CALENDAR_QUOTE_SYMBOL_DATA)
         
         current_tick = next_tick = DEFAULT_NUMBER_INT
         while (current_tick < len(TICK_DATA) - DEFAULT_SECOND_NUMBER_INT):
@@ -1678,6 +1882,7 @@ class HappyForexEA(object):
             # save the previous date when going to a new date 
             if (fprevious_day != self.current_day):
                 
+                ''' For EA running by itself '''
                 time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
                 log.info("==> current_tick: %s" % current_tick)
                 log.info("==> checking date %s" % self.current_datetime)
@@ -1705,6 +1910,7 @@ class HappyForexEA(object):
                 
                 # get the values from the next tick
                 diff_time = (self.current_day_nexttick + self.current_time_nexttick) - (self.current_day + self.current_time) 
+                
                 if (self.current_day != self.current_day_nexttick):
                     self.current_day_nexttick = float(TICK_DATA[next_tick - DEFAULT_SECOND_NUMBER_INT][DAY_COL_INDEX])
                     self.current_time_nexttick = float(TICK_DATA[next_tick - DEFAULT_SECOND_NUMBER_INT][TIME_COL_INDEX])
@@ -1788,6 +1994,7 @@ class HappyForexEA(object):
         print("{0} ==>  Start calculating fitness for individual {1}!".format(time_stamp, individual_ID))
             
         total_profit = DEFAULT_NUMBER_FLOAT 
+#         self.PARAMETERS_DATA = copy_string_array(PARAMETERS_DATA)
         
         # Create an folder for storing all outputs in this section 
         folder_output = FOLDER_DATA_OUTPUT + SYMBOL + '_ind_' + str(individual_ID) + '_outputs/'
@@ -1799,13 +2006,27 @@ class HappyForexEA(object):
         folder_name = convert_backflash2forwardflash(FOLDER_DATA_INPUT + SYMBOL + FOLDER_TICK_DATA_MODIFIED)
         allFiles = glob.glob(folder_name + '/*.csv')
         
+        ''' SINGLETHREADING 
+        for file_ in allFiles:
+            total_profit += HappyForexEA().analised_tick_data(PARAMETERS_DATA, folder_output, file_,)
+        '''
+        
+        ''' MULTITHREADING '''
         # make the Pool of workers
         pool_size = multiprocessing.cpu_count()
         
         time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
         log.info("==>  Pool size of ThreadPool: {0}!".format(pool_size))
         print("{0} ==>  Pool size of ThreadPool: {1}!".format(time_stamp, pool_size))
-
+         
+#        # Another Multi_threading method
+#         results = ea_pool.map(self.analised_tick_data, allFiles)
+#         ea_pool.close() 
+#         ea_pool.join()
+#         
+#         for profit_ in results:
+#             total_profit += float(profit_)
+        
         ea_pool = ThreadPool(pool_size)
         
         # Running EA process
@@ -1821,12 +2042,18 @@ class HappyForexEA(object):
         # get the total profit after running all the Tick data
         for profit_ in profits:
             total_profit += float(profit_)
-        
+            
         # write out other data for reference
-        combine_all_files_in_a_folder(folder_output,
-                                      FOLDER_DATA_OUTPUT + SYMBOL + '/ind_' + str(individual_ID) + '_$' + str(round(total_profit, 2)) + '_' + FILENAME_ORDER_CLOSED_HISTORY,
+        file_name_out = FOLDER_DATA_OUTPUT + SYMBOL + '/ind_' + str(individual_ID) + '_$' + str(round(total_profit, 2)) + '_' + FILENAME_ORDER_CLOSED_HISTORY
+        combine_all_files_in_a_folder(folder_output, file_name_out,
                                       '*_' + FILENAME_ORDER_CLOSED_HISTORY)
         
+        # convert back the Date Time for output file
+        converted_data = convert_datetime_back_whole_list(file_name_out)
+        
+        # create a new file name
+        write_array2csv_with_delimiter_no_header(converted_data, file_name_out, ',')
+    
         # delete output folder after writing out the order history 
         if os.path.exists(folder_output):
             shutil.rmtree(folder_output)
@@ -1834,7 +2061,7 @@ class HappyForexEA(object):
         time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
         log.info("==>  Completed calculating fitness for individual {0} with profit {1}!".format(individual_ID, round(total_profit, 2)))
         print("{0} ==>  Completed calculating fitness for individual {1} with profit {2}!".format(time_stamp, individual_ID, round(total_profit, 2)))
-        
+            
         return total_profit
 
 ################################################################################
@@ -1845,6 +2072,13 @@ class HappyForexEA(object):
 #===============================================================================
 if __name__ == "__main__":
     
+#     # create an instance EA for running 
+#     happyforex_EA_instance = HappyForexEA()
+#            
+#     # running EA
+#     happyforex_EA_instance.run(DEFAULT_PARAMETERS_DATA, 1)
+    
+    ''' RUNNING WITH LOG AND PROFILE '''
     # If applicable, delete the existing log file to generate a fresh log file during each execution
     if path.isfile(FOLDER_DATA_OUTPUT + FILENAME_LOG_EA):
         remove(FOLDER_DATA_OUTPUT + FILENAME_LOG_EA)

@@ -7,6 +7,7 @@ import unittest
 import os
 import pandas as pd
 
+from os import path
 from StrategyTesterModule.happyforex_ST import HappyForexEA
 from DataHandler.hardcoded_data import DEFAULT_NUMBER_INT, DEFAULT_SECOND_NUMBER_INT, \
     OP_BUY, OP_BUYLIMIT, MARKET_TIME_STANDARD, DATETIME_FORMAT, LOTS_COL_INDEX, \
@@ -18,7 +19,8 @@ from DataHandler.hardcoded_data import DEFAULT_NUMBER_INT, DEFAULT_SECOND_NUMBER
     merge_2parametes_array_data, point_of_symbol, digit_of_symbol, \
     is_time_earlier, convert_string_datetime2float_no_ms, convert_string_day2float, \
     convert_string_millisecond2float, write_value_of_dict2csv_no_header, \
-    convert_string_second2float 
+    convert_string_second2float , load_csv2array, \
+    convert_datetime_back_whole_list
 
 happyforex_EA_instance = HappyForexEA()
 
@@ -158,6 +160,68 @@ class TestHappyForex_ST(unittest.TestCase):
     #===========================================================================
     def testName(self):
         pass
+    
+    #===========================================================================
+    def test_get_previous_event_minute(self):
+        print('')
+        print('#============================== test_get_previous_event_minute ==============================')
+        
+        EVENTS_OF_CALENDAR_ALL_SYMBOLS = [[1397095200.0, 16170.0, 7200, 'JPY', 1.0],
+                                          [1397159400.0, 16170.0, 71400, 'JPY', 1.0],
+                                          [1397159400.0, 16170.0, 71400, 'JPY', 1.0],
+                                          [1397159400.0, 16170.0, 71400, 'JPY', 2.0],
+                                          [1397159400.0, 16170.0, 72500, 'JPY', 2.0]]
+        display_an_array_with_delimiter(EVENTS_OF_CALENDAR_ALL_SYMBOLS, ',')
+        previous_event_minute = happyforex_EA_instance.get_previous_event_minute(8, EVENTS_OF_CALENDAR_ALL_SYMBOLS)
+                
+        # testing
+        print('==> previous_event_minute = %s' % previous_event_minute)
+        
+        defined_minute = 50
+        print('==> defined_minute = %s' % defined_minute)
+        self.assertEqual(defined_minute, previous_event_minute, "The function IS NOT correct..") 
+     
+    #===========================================================================
+    def test_get_next_event_minute(self):
+        print('')
+        print('#============================== test_get_next_event_minute ==============================')
+        
+        EVENTS_OF_CALENDAR_ALL_SYMBOLS = [[1397095200.0, 16170.0, 7200, 'JPY', 1.0],
+                                          [1397159400.0, 16170.0, 71400, 'JPY', 1.0],
+                                          [1397159400.0, 16170.0, 71400, 'JPY', 1.0],
+                                          [1397159400.0, 16170.0, 71400, 'JPY', 2.0],
+                                          [1397159400.0, 16170.0, 71520, 'JPY', 2.0]]
+        display_an_array_with_delimiter(EVENTS_OF_CALENDAR_ALL_SYMBOLS, ',')
+        previous_event_minute = happyforex_EA_instance.get_next_event_minute(50, EVENTS_OF_CALENDAR_ALL_SYMBOLS)[DEFAULT_NUMBER_INT]
+                
+        # testing
+        print('==> previous_event_minute = %s' % previous_event_minute)
+        
+        defined_minute = 52
+        print('==> defined_minute = %s' % defined_minute)
+        self.assertEqual(defined_minute, previous_event_minute, "The function IS NOT correct..") 
+       
+    #===========================================================================
+    def test_get_event_in_a_day(self):
+        print('')
+        print('#============================== test_get_event_in_a_day ==============================')
+        
+        file_name_base_currency = str(os.path.dirname(os.getcwd())) + '/DataHandler/data/input/economic_calendar_01Jan2007_18Apr2014_modified/JPY_NewsEvents_01Jan2007_18Apr2014.csv'
+
+        if path.isfile(file_name_base_currency):
+            CALENDAR_QUOTE_SYMBOL_DATA = load_csv2array(file_name_base_currency)
+        display_an_array_with_delimiter(CALENDAR_QUOTE_SYMBOL_DATA, ' ')
+        
+        EVENTS_OF_CALENDAR_QUOTE_SYMBOLS = happyforex_EA_instance.get_event_in_a_day(16167.0, CALENDAR_QUOTE_SYMBOL_DATA)
+        display_an_array_with_delimiter(EVENTS_OF_CALENDAR_QUOTE_SYMBOLS[DEFAULT_NUMBER_INT], ' ')
+        display_an_array_with_delimiter(EVENTS_OF_CALENDAR_QUOTE_SYMBOLS[DEFAULT_SECOND_NUMBER_INT], ' ')
+        
+        # testing
+        print('==> length of all event in the input day = %s' % len(EVENTS_OF_CALENDAR_QUOTE_SYMBOLS[DEFAULT_NUMBER_INT]))
+        
+        defined_len = 3
+        print('==> defined_len = %s' % defined_len)
+        self.assertEqual(defined_len, len(EVENTS_OF_CALENDAR_QUOTE_SYMBOLS[DEFAULT_NUMBER_INT]), "The function IS NOT correct..") 
     
     #===========================================================================
     def test_OrderDelete_4(self):
@@ -624,6 +688,39 @@ class TestHardcodedData(unittest.TestCase):
     def setUp(self):
         pass
 
+    #===========================================================================
+    def test_convert_datetime_back_whole_list(self):
+        print('')
+        print('#============================== test_convert_datetime_back_whole_list ==============================')
+        
+        # convert back the Date Time for output file
+        file_name_out = 'datetime_converted_testdata.csv'
+        data_converted = convert_datetime_back_whole_list(file_name_out)
+        display_an_array_with_delimiter(data_converted, ',    ')
+        
+        # create a new file name
+        new_file_name_out = file_name_out.replace('.csv', '_dattime_converted.csv')
+        write_array2csv_with_delimiter_no_header(data_converted, new_file_name_out, ',')
+        
+        '''
+        2005.01.03_01:48:05,    2005.01.03,    01:48:05,    102.54,    102.58
+        2005.01.03_01:53:42,    2005.01.03,    01:53:42,    102.54,    102.58
+        '''
+        
+        # testing
+        datetime_converted = data_converted[DEFAULT_NUMBER_INT][DATETIME_COL_INDEX]
+        print('==> datetime_converted = %s' % datetime_converted)
+        
+        defined_datetime_coverted = '2005.01.03_01:48:05'
+        print('==> defined_datetime_coverted = %s' % defined_datetime_coverted)
+        
+        if (datetime_converted == defined_datetime_coverted):
+            flag_datetime = True
+        else:
+            flag_datetime = False
+            
+        self.assertTrue(flag_datetime, "The function IS NOT correct..") 
+        
     #===========================================================================
     def test_convert_backflash2forwardflash(self):
             
