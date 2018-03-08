@@ -6,8 +6,11 @@ Created on Dec 13, 2017
 import unittest
 import os
 import pandas as pd
-
+import sys
 from os import path
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
 from StrategyTesterModule.happyforex_ST import HappyForexEA
 from DataHandler.hardcoded_data import DEFAULT_NUMBER_INT, DEFAULT_SECOND_NUMBER_INT, \
     OP_BUY, OP_BUYLIMIT, MARKET_TIME_STANDARD, DATETIME_FORMAT, LOTS_COL_INDEX, \
@@ -20,7 +23,7 @@ from DataHandler.hardcoded_data import DEFAULT_NUMBER_INT, DEFAULT_SECOND_NUMBER
     is_time_earlier, convert_string_datetime2float_no_ms, convert_string_day2float, \
     convert_string_millisecond2float, write_value_of_dict2csv_no_header, \
     convert_string_second2float , load_csv2array, \
-    convert_datetime_back_whole_list
+    convert_datetime_back_whole_list, combine_all_files_in_a_folder
 
 happyforex_EA_instance = HappyForexEA()
 
@@ -687,6 +690,33 @@ class TestHardcodedData(unittest.TestCase):
 
     def setUp(self):
         pass
+    
+    #===============================================================================
+    def test_combine_all_files_in_a_folder(self):
+            print('')
+            print('#============================== test_combine_all_files_in_a_folder ==============================')
+               
+            file_name_output = 'ind_News_Multithread_ART.csv'
+            combine_all_files_in_a_folder('/home/lamcv/Downloads/USDJPY_ind_1_outputs', file_name_output, '*_order_closed_history.csv')
+       
+            # convert back the Date Time for output file
+            converted_data = convert_datetime_back_whole_list(file_name_output)
+            
+            # create a new file name
+            write_array2csv_with_delimiter_no_header(converted_data, file_name_output, ',')
+            
+            # testing
+            file_exist_flag = False
+            if os.path.isfile(file_name_output):
+                file_exist_flag = True 
+            self.assertTrue(file_exist_flag, "CANNOT write the array to the CSV file.")
+               
+            # testing
+            file_size_flag = False
+            statinfo = os.stat(file_name_output)
+            if (statinfo.st_size > 0):
+                file_size_flag = True
+            self.assertTrue(file_size_flag, "CANNOT write any data of the array to the CSV file.")
 
     #===========================================================================
     def test_convert_datetime_back_whole_list(self):

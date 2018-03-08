@@ -12,9 +12,13 @@ import shutil
 import os
 from datetime import datetime
 from os import path, remove
-from StrategyTesterModule.happyforex_ST import HappyForexEA
 from multiprocessing.dummy import Pool as ThreadPool
+import cProfile
+import multiprocessing
 
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+from StrategyTesterModule.happyforex_ST import HappyForexEA
 from DataHandler.hardcoded_data import MAX_LOTS, NET_PROFIT, MAX_FITNESS, \
                                     OPTIMIZED_PARAMETERS_DATA, OPTIMIZE_PARAMETERS_LIST, \
                                     VALUE_COL_INDEX, DEFAULT_SECOND_NUMBER_INT, DEFAULT_PARAMETERS_DATA, \
@@ -27,9 +31,7 @@ from DataHandler.hardcoded_data import MAX_LOTS, NET_PROFIT, MAX_FITNESS, \
                                     FILENAME_LOG_BACKTEST, FILENAME_PROFILE_BACKTEST, FILENAME_ORDER_DELETED_HISTORY, \
                                     write_wholedict2csv_no_header, write_array2csv_with_delimiter_no_header, \
                                     display_an_array_with_delimiter, \
-    DEFAULT_NUMBER_FLOAT
-import cProfile
-import multiprocessing
+                                    DEFAULT_NUMBER_FLOAT
 
 log = logging.getLogger(__name__)
 

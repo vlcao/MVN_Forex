@@ -13,6 +13,9 @@ DEFAULT_SECOND_NUMBER_FLOAT = 1.00
 
 VALUE_COL_INDEX = 1
 
+RUN_FREQUENCY_BY_YEAR = 1
+
+MONTHS_OF_A_YEAR = 12
 DAYS_OF_AYEAR = 360
 HOURS_OF_ADAY = 24
 MINUTES_OF_ANHOUR = 60
@@ -70,9 +73,9 @@ PERIOD_W1 = 432000.00
 PERIOD_MN = 1728000.00
 
 TIME_FRAME = PERIOD_H1
-SYMBOL = 'USDJPY'
-QUOTE_CURRENCY = 'JPY'
-BASE_CURRENCY = 'USD'
+SYMBOL = 'EURUSD'
+QUOTE_CURRENCY = 'USD'
+BASE_CURRENCY = 'EUR'
 ALL_CURRENCY = 'ALL'
 
 import os
@@ -80,7 +83,7 @@ SCR_DIR_PATH = os.path.dirname(os.getcwd())
 FOLDER_DATA_INPUT = SCR_DIR_PATH + '/DataHandler/data/input/'
 FOLDER_DATA_OUTPUT = SCR_DIR_PATH + '/DataHandler/data/output/'
 FOLDER_TICK_DATA_ORIGINAL = '/USDJPY_GAINCapital_Original'
-FOLDER_TICK_DATA_MODIFIED = '/USDJPY_GAINCapital_Modified'
+FOLDER_TICK_DATA_MODIFIED = '/ATemp'
 FOLDER_CALENDAR_DATA_ORIGINAL = 'economic_calendar_01Jan2007_18Apr2014_original'
 FOLDER_CALENDAR_DATA_MODIFIED = 'economic_calendar_01Jan2007_18Apr2014_modified/'
 
@@ -283,15 +286,15 @@ def create_a_new_row_gaincapital_format(row):
         ==> [2009.05.01_00:00:00,000, 102.540000,102.580000, 102.540000,102.580000]
         ==> [1241136000296.000000, 14365.0, 000.0, 98.89, 98.902, 98.887, 98.899] '''
     
-#     # GAIN Capital tick data from 2005 to 2009
-#     datetime_col_index = 2
-#     bid_col_index = 3
-#     ask_col_index = 4
+    # GAIN Capital tick data from 2005 to 2009 and datetime_col_index = 2 [0,1,2]
+    datetime_col_index = 2
+    bid_col_index = 3
+    ask_col_index = 4
     
-    # GAIN Capital tick data from 2010 to 2017
-    datetime_col_index = 3
-    bid_col_index = 4
-    ask_col_index = 5
+#     # GAIN Capital tick data from 2010 to 2017 datetime_col_index = 3 [0,1,2,3]
+#     datetime_col_index = 3
+#     bid_col_index = 4
+#     ask_col_index = 5
     
     if (row[datetime_col_index] != '0'):
         # --> get the part BEFORE (Date) and AFTER (Time) the Space
@@ -355,7 +358,6 @@ def create_multiple_tick_data_from_wholefolder_gaincapital_format(folder_name):
         
         # create a new version of row with (GAIN Capital Tick Data Format)
         for row in reader:
-        
             new_row = (','. join([str(j) for j in create_a_new_row_gaincapital_format(row)])
                        + "\n")
             
@@ -1055,49 +1057,49 @@ def convert_datetime_back_whole_list(file_name_out):
         data_converted[i][TIME_COL_INDEX] = time_converted
         
     return data_converted
-
         
 #===============================================================================
-# TODO: Run 2 times for 2 formats: 2005-2009 & 2010-2017
-# Create TICK_DATA with Modification from Original Tick Data CSV file WITH milliseconds
-# --> format the date time as expected WITH millisecond (Note: need to do 2 time with columns format from from 2005 to 2009 VS from 2010 to 2017)
-FOLDER_TICK_DATA_ORIGINAL = '/USDJPY_GAINCapital_Original_with_milliseconds'
-
-
-MARKET_TIME_STANDARD = '1970.01.01_00:00:00.000'
-DATETIME_FORMAT = '%Y.%m.%d_%H:%M:%S.%f'
-create_multiple_tick_data_from_wholefolder_gaincapital_format(FOLDER_DATA_INPUT + SYMBOL + FOLDER_TICK_DATA_ORIGINAL)
-# 
+# # TODO: Run 2 times for 2 formats: 2005-2009 & 2010-2017
+# # Create TICK_DATA with Modification from Original Tick Data CSV file WITH milliseconds
+# # --> format the date time as expected WITH millisecond (Note: need to do 2 time with columns format from from 2005 to 2009 VS from 2010 to 2017)
+# FOLDER_TICK_DATA_ORIGINAL = '/EURUSD_2006_2017_GAINCapital_Original_with_milliseconds_DTcol_2'
+# MARKET_TIME_STANDARD = '1970.01.01_00:00:00.000'
+# DATETIME_FORMAT = '%Y.%m.%d_%H:%M:%S.%f'
+# create_multiple_tick_data_from_wholefolder_gaincapital_format(FOLDER_DATA_INPUT + SYMBOL + FOLDER_TICK_DATA_ORIGINAL)
+#  
 # # TODO: Run 2 times for 2 formats: 2005-2009 & 2010-2017
 # # Create TICK_DATA with Modification from Original Tick Data CSV file WITHOUT milliseconds
 # # --> format the date time as expected WITHOUT millisecond (Note: need to do 2 time with columns format from from 2005 to 2009 VS from 2010 to 2017)
-# FOLDER_TICK_DATA_ORIGINAL = '/USDJPY_GAINCapital_Original_without_milliseconds'
+# FOLDER_TICK_DATA_ORIGINAL = '/EURUSD_2006_2017_GAINCapital_Original_NO_milliseconds_DTcol_2'
+# 
+# 
 # MARKET_TIME_STANDARD = '1970.01.01_00:00:00'
 # DATETIME_FORMAT = '%Y.%m.%d_%H:%M:%S'
 # create_multiple_tick_data_from_wholefolder_gaincapital_format(FOLDER_DATA_INPUT + SYMBOL + FOLDER_TICK_DATA_ORIGINAL)
-# 
+#  
 # # Create CALENDAR_DATA with Modification from Original Calendar Data CSV file WITHOUT milliseconds
 # create_multiple_calendar_data_from_wholefolder_forexfactory_format(FOLDER_DATA_INPUT + FOLDER_CALENDAR_DATA_ORIGINAL)
 
+ 
 time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
 log.info("==> Load DEFAULT_PARAMETERS_DATA: %s ..." % (FOLDER_DATA_INPUT + FILENAME_PARAMETER_DEFAULT))
 log.info('===============================================================================')
 print("%s ==> Load DEFAULT_PARAMETERS_DATA: %s ..." % (time_stamp, FOLDER_DATA_INPUT + FILENAME_PARAMETER_DEFAULT))
 print('===============================================================================')
-
+ 
 # Create DEFAULT_PARAMETERS_DATA with CSV file
 DEFAULT_PARAMETERS_DATA = load_csv2array(FOLDER_DATA_INPUT + FILENAME_PARAMETER_DEFAULT)
-
+ 
 time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
 log.info("==> Load SETTING_PARAMETERS_DATA: %s ..." % (FOLDER_DATA_INPUT + FILENAME_PARAMETER_SETTING_2))
 log.info('===============================================================================')
 print("%s ==> Load SETTING_PARAMETERS_DATA: %s ..." % (time_stamp, FOLDER_DATA_INPUT + FILENAME_PARAMETER_SETTING_2))
 print('===============================================================================')
-
+ 
 # Create SETTING_2_PARAMETERS_DATA with CSV file
 SETTING_2_PARAMETERS_DATA = load_csv2array(FOLDER_DATA_INPUT + FILENAME_PARAMETER_SETTING_2)
 SETTING_3_PARAMETERS_DATA = load_csv2array(FOLDER_DATA_INPUT + FILENAME_PARAMETER_SETTING_3)
-
+ 
 time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
 log.info("==> Create OPTIMIZED_PARAMETERS_DATA data: %s ..." % (FOLDER_DATA_OUTPUT + FILENAME_OPTIMIZE_PARAMETER))
 log.info('===============================================================================')
@@ -1105,18 +1107,18 @@ print("%s ==> Create OPTIMIZED_PARAMETERS_DATA data: %s ..." % (time_stamp, FOLD
 print('===============================================================================')
 # Create OPTIMIZED_PARAMETERS_DATA
 OPTIMIZED_PARAMETERS_DATA = get_subset_data(DEFAULT_PARAMETERS_DATA, OPTIMIZE_PARAMETERS_LIST)
-
+ 
 time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
 log.info("==> Load CALENDAR_DATA: %s ..." % (FOLDER_DATA_INPUT + FILENAME_PARAMETER_SETTING_2))
 log.info('===============================================================================')
 print("%s ==> Load CALENDAR_DATA: %s ..." % (time_stamp, FOLDER_DATA_INPUT + FILENAME_PARAMETER_SETTING_2))
 print('===============================================================================')
-
+ 
 # Create CALENDAR_DATA with CSV file
 # --> calendar of all symbols 
 CALENDAR_ALL_SYMBOLS_DATA = load_csv2array(FOLDER_DATA_INPUT + FOLDER_CALENDAR_DATA_MODIFIED + 
                                            ALL_CURRENCY + FILENAME_CALENDAR_DATA)
-
+ 
 # --> calendar of base symbol 
 file_name_base_currency = str(FOLDER_DATA_INPUT + FOLDER_CALENDAR_DATA_MODIFIED + 
                               BASE_CURRENCY + FILENAME_CALENDAR_DATA)
@@ -1124,7 +1126,7 @@ if path.isfile(file_name_base_currency):
     CALENDAR_BASE_SYMBOL_DATA = load_csv2array(file_name_base_currency)
 else:
     CALENDAR_BASE_SYMBOL_DATA = []
-
+ 
 # --> calendar of quote symbol 
 file_name_quote_currency = str(FOLDER_DATA_INPUT + FOLDER_CALENDAR_DATA_MODIFIED + 
                                QUOTE_CURRENCY + FILENAME_CALENDAR_DATA)
@@ -1132,11 +1134,11 @@ if path.isfile(file_name_quote_currency):
     CALENDAR_QUOTE_SYMBOL_DATA = load_csv2array(file_name_quote_currency)
 else:
     CALENDAR_QUOTE_SYMBOL_DATA = []
-
+ 
 display_an_array_with_delimiter(CALENDAR_ALL_SYMBOLS_DATA, ' ')
 display_an_array_with_delimiter(CALENDAR_BASE_SYMBOL_DATA, ' ')
 display_an_array_with_delimiter(CALENDAR_QUOTE_SYMBOL_DATA, ' ')
-    
+     
 time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
 log.info("==> All hard coded data have been loaded!!!")
 log.info('===============================================================================')

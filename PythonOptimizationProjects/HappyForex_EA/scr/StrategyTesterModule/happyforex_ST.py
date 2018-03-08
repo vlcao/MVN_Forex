@@ -13,10 +13,15 @@ import glob
 import shutil
 import numpy as np
 import sys
+import multiprocessing
 
+from astropy.units import day
 from multiprocessing.dummy import Pool as ThreadPool
 from os import path, remove
 from datetime import datetime, date
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
 from DataHandler.hardcoded_data import DEFAULT_NUMBER_INT, DEPOSIT, DEFAULT_SECOND_NUMBER_INT, \
     BALANCE_COL_INDEX, BID_COL_INDEX, ASK_COL_INDEX, FILENAME_LOG_EA, \
     ORDER_TYPE_COL_INDEX, LOTS_COL_INDEX, LEVERAGE, HOURS_OF_ADAY, \
@@ -32,10 +37,7 @@ from DataHandler.hardcoded_data import DEFAULT_NUMBER_INT, DEPOSIT, DEFAULT_SECO
     DEFAULT_PARAMETERS_DATA, TP_COL_INDEX, CALENDAR_ALL_SYMBOLS_DATA, \
     CALENDAR_BASE_SYMBOL_DATA, CALENDAR_QUOTE_SYMBOL_DATA, IMPACT_COL_INDEX, \
     write_array2csv_with_delimiter_no_header, convert_datetime_back_whole_list, \
-    display_an_array_with_delimiter
-    
-import multiprocessing
-from astropy.units import day
+    display_an_array_with_delimiter, RUN_FREQUENCY_BY_YEAR, MONTHS_OF_A_YEAR
     
 log = logging.getLogger(__name__)
 
@@ -1946,6 +1948,7 @@ class HappyForexEA(object):
         file_name = convert_backflash2forwardflash(file_)
         file_basename = str(os.path.basename(file_))
         
+        ''' For EA running by itself '''
         time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
         log.info("==> Loading TICK DATA from file: {0}...".format(file_basename))
         print("{0} ==> Loading TICK DATA from file: {1}...".format(time_stamp, file_basename))
@@ -2109,7 +2112,11 @@ class HappyForexEA(object):
 #         self.PARAMETERS_DATA = copy_string_array(PARAMETERS_DATA)
         
         # Create an folder for storing all outputs in this section 
-        folder_output = FOLDER_DATA_OUTPUT + SYMBOL + '_ind_' + str(individual_ID) + '_outputs/'
+        symbol_folder_output = FOLDER_DATA_OUTPUT + SYMBOL
+        if os.path.exists(symbol_folder_output) == False:
+            os.makedirs(symbol_folder_output)
+        
+        folder_output = symbol_folder_output + '/ind_' + str(individual_ID) + '_outputs/'
         if os.path.exists(folder_output):
             shutil.rmtree(folder_output)
         os.makedirs(folder_output)
@@ -2118,11 +2125,26 @@ class HappyForexEA(object):
         folder_name = convert_backflash2forwardflash(FOLDER_DATA_INPUT + SYMBOL + FOLDER_TICK_DATA_MODIFIED)
         allFiles = glob.glob(folder_name + '/*.csv')
         
-        ''' SINGLETHREADING '''
+        # create a list of files to analyze based on Run Frequency
+        allFile_w_frequency = []
+        total_analyzed_files = RUN_FREQUENCY_BY_YEAR * MONTHS_OF_A_YEAR
+        
+        # identify where to get all the file for analysis
+        if(len(allFiles) > total_analyzed_files):
+            file_count = len(allFiles) - total_analyzed_files
+        else:
+            file_count = DEFAULT_NUMBER_INT
+            
+        while (file_count < len(allFiles)):
+            allFile_w_frequency.append(allFiles[file_count])
+            file_count += DEFAULT_SECOND_NUMBER_INT
+        
+        ''' SINGLETHREADING 
         for file_ in allFiles:
             total_profit += HappyForexEA().analised_tick_data(PARAMETERS_DATA, folder_output, file_,)
+        '''
         
-        ''' MULTITHREADING 
+        ''' MULTITHREADING '''
         # make the Pool of workers
         pool_size = multiprocessing.cpu_count()
         
@@ -2142,7 +2164,7 @@ class HappyForexEA(object):
         
         # Running EA process
         results = [ea_pool.apply_async(HappyForexEA().analised_tick_data, (PARAMETERS_DATA, folder_output, file_,))
-                   for file_ in allFiles]
+                   for file_ in allFile_w_frequency]
          
         # --> proxy.get() waits for task completion and returns the result
         profits = [r.get() for r in results]  
@@ -2153,10 +2175,9 @@ class HappyForexEA(object):
         # get the total profit after running all the Tick data
         for profit_ in profits:
             total_profit += float(profit_)
-        '''    
             
         # write out other data for reference
-        file_name_out = FOLDER_DATA_OUTPUT + SYMBOL + '/ind_' + str(individual_ID) + '_$' + str(round(total_profit, 2)) + '_' + FILENAME_ORDER_CLOSED_HISTORY
+        file_name_out = symbol_folder_output + '/' + SYMBOL + '_ind_' + str(individual_ID) + '_$' + str(round(total_profit, 2)) + '_' + FILENAME_ORDER_CLOSED_HISTORY
         combine_all_files_in_a_folder(folder_output, file_name_out,
                                       '*_' + FILENAME_ORDER_CLOSED_HISTORY)
         
@@ -2184,36 +2205,36 @@ class HappyForexEA(object):
 #===============================================================================
 if __name__ == "__main__":
     
-    # create an instance EA for running 
-    happyforex_EA_instance = HappyForexEA()
-             
-    # running EA
-    happyforex_EA_instance.run(DEFAULT_PARAMETERS_DATA, 1)
+#     # create an instance EA for running 
+#     happyforex_EA_instance = HappyForexEA()
+#              
+#     # running EA
+#     happyforex_EA_instance.run(DEFAULT_PARAMETERS_DATA, 1)
     
-#     ''' RUNNING WITH LOG AND PROFILE '''
-#     # If applicable, delete the existing log file to generate a fresh log file during each execution
-#     if path.isfile(FOLDER_DATA_OUTPUT + FILENAME_LOG_EA):
-#         remove(FOLDER_DATA_OUTPUT + FILENAME_LOG_EA)
-#           
-#     handler = logging.handlers.WatchedFileHandler(os.environ.get("LOGFILE", FOLDER_DATA_OUTPUT + FILENAME_LOG_EA))
-#       
-#     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-#     handler.setFormatter(formatter)
-#       
-#     root = logging.getLogger()
-#     root.setLevel(os.environ.get("LOGLEVEL", "INFO"))
-#     root.addHandler(handler)
-#       
-#     try:
-#                
-#         # create an instance EA for running 
-#         happyforex_EA_instance = HappyForexEA()
-#          
-#         # running EA
-#         cProfile.run('happyforex_EA_instance.run(DEFAULT_PARAMETERS_DATA, 1)', FOLDER_DATA_OUTPUT + FILENAME_PROFILE_EA)
-# #         happyforex_EA_instance.run(DEFAULT_PARAMETERS_DATA, 1)
-#          
-#     except Exception:
-#         logging.exception("Exception in main")
-#         exit(1) 
+    ''' RUNNING WITH LOG AND PROFILE '''
+    # If applicable, delete the existing log file to generate a fresh log file during each execution
+    if path.isfile(FOLDER_DATA_OUTPUT + FILENAME_LOG_EA):
+        remove(FOLDER_DATA_OUTPUT + FILENAME_LOG_EA)
+           
+    handler = logging.handlers.WatchedFileHandler(os.environ.get("LOGFILE", FOLDER_DATA_OUTPUT + FILENAME_LOG_EA))
+       
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+       
+    root = logging.getLogger()
+    root.setLevel(os.environ.get("LOGLEVEL", "INFO"))
+    root.addHandler(handler)
+       
+    try:
+                
+        # create an instance EA for running 
+        happyforex_EA_instance = HappyForexEA()
+          
+        # running EA
+        cProfile.run('happyforex_EA_instance.run(DEFAULT_PARAMETERS_DATA, 1)', FOLDER_DATA_OUTPUT + FILENAME_PROFILE_EA)
+#         happyforex_EA_instance.run(DEFAULT_PARAMETERS_DATA, 1)
+          
+    except Exception:
+        logging.exception("Exception in main")
+        exit(1) 
 
