@@ -112,23 +112,23 @@ RUN_FREQUENCY_9_YEAR = '9'
 SCR_DIR_PATH = os.getcwd()
 FOLDER_DATA_INPUT = SCR_DIR_PATH + '/data/input/'
 FOLDER_DATA_OUTPUT = SCR_DIR_PATH + '/data/output/'
+FOLDER_DATA_LOG = SCR_DIR_PATH + '/data/log/'
 FOLDER_TICK_DATA_ORIGINAL = '/USDJPY_GAINCapital_Original'
 FOLDER_TICK_DATA_MODIFIED = '/EURUSD_GAINCapital_Modified'
 FOLDER_CALENDAR_DATA_ORIGINAL = 'economic_calendar_01Jan2007_18Apr2014_original'
 FOLDER_CALENDAR_DATA_MODIFIED = 'economic_calendar_01Jan2007_18Apr2014_modified/'
 
 FILENAME_CALENDAR_DATA = '_NewsEvents_01Jan2007_18Apr2014.csv'
-FILENAME_TICK_DATA = '/USDJPY-2009-05.csv'
 FILENAME_PARAMETER_DEFAULT = 'default_parameters.csv'
 FILENAME_PARAMETER_SETTING_2 = 'parameters_setting_2.csv'
 FILENAME_PARAMETER_SETTING_3 = 'parameters_setting_3.csv'
 FILENAME_OPTIMIZE_PARAMETER = 'optimized_parameters.csv'
 FILENAME_POPULATION_INITIAL = 'population_initial.csv'
 FILENAME_POPULATION_FINAL = 'population_final.csv'
-FILENAME_LOG_EA = 'HappyForexEA_LogRun.log'
-FILENAME_PROFILE_EA = "HappyForexEA_ProfileRun.prof"
-FILENAME_LOG_BACKTEST = 'HappyForexBackTest_LogRun.log'
-FILENAME_PROFILE_BACKTEST = "HappyForexBackTest_ProfileRun.prof"
+FILENAME_LOG_EA = FOLDER_DATA_LOG + SYMBOL + '_HappyForexEA_LogRun.log'
+FILENAME_PROFILE_EA = FOLDER_DATA_LOG + SYMBOL + '_HappyForexEA_ProfileRun.prof'
+FILENAME_LOG_BACKTEST = FOLDER_DATA_LOG + SYMBOL + '_HappyForexBackTest_LogRun.log'
+FILENAME_PROFILE_BACKTEST = FOLDER_DATA_LOG + SYMBOL + '_HappyForexBackTest_ProfileRun.prof'
 FILENAME_BEST_SOLUTION = '_FITNESS_BEST_SOLUTION.csv'
 FILENAME_BEST_PARAMETERS = '_WHOLE_BEST_PARAMETERS.csv'
 FILENAME_HIGHEST_FITNESS = '_fitness_highest_solution.csv'
@@ -246,15 +246,45 @@ def combine_2arrays_data(array_1, array_2):
 
 
 #===============================================================================
-def load_csv2dataframe(file_name):
+def load_csv2dataframe(file_name_year_log_backtest):
     
     # convert the back flash with forward flash (just in case)
-    file_name = convert_backflash2forwardflash(file_name)
+    file_name_year_log_backtest = convert_backflash2forwardflash(file_name_year_log_backtest)
     
     # create a data frame with CSV file
-    DataFrame = pd.read_csv(file_name)
+    DataFrame = pd.read_csv(file_name_year_log_backtest)
      
     return DataFrame
+
+
+#===============================================================================
+def replace_string(old_string, old_content, new_content):
+    new_string = ''
+    flag_same_content = True
+    
+    # replace the back flash with forward flash
+    i = DEFAULT_NUMBER_INT
+    while (i < len(old_string)):
+        
+        if (old_string[i] == old_content[DEFAULT_NUMBER_INT]):
+            # check if the string has the old content or not
+            for j in range(len(old_content)):
+                if old_string[i + j] != old_content[j]:
+                    flag_same_content = False
+                    break
+            
+            # replace the old content with new content when the string has the old content
+            if (flag_same_content):
+                for j in range(len(new_content)):
+                    new_string += new_content[j]
+                    
+            # change the counter to match the new content        
+            i += len(old_content)
+        else:
+            new_string += old_string[i]
+            i += DEFAULT_SECOND_NUMBER_INT
+                
+    return new_string
 
 
 #===============================================================================
@@ -358,7 +388,7 @@ def create_multiple_tick_data_from_wholefolder_gaincapital_format(folder_name):
         file_basename = os.path.basename(file_)
         print("{0} ==> processing file {1}: {2} ...".format(time_stamp, file_index, file_basename))
          
-        file_name = convert_backflash2forwardflash_change_output_folder(file_)
+        file_name_year_log_backtest = convert_backflash2forwardflash_change_output_folder(file_)
           
         if (file_index % 10 == DEFAULT_NUMBER_INT):
             perc = round((float(file_index) / float(len(allFiles))) * float(100), 2)
@@ -366,7 +396,7 @@ def create_multiple_tick_data_from_wholefolder_gaincapital_format(folder_name):
             print("{0} ... ==> processing {1}% of the data...".format(time_stamp, perc))
            
         # write an array to a CSV file
-        csv_new_row_write = open(file_name, "w")  # "w" indicates that you're writing strings to the file
+        csv_new_row_write = open(file_name_year_log_backtest, "w")  # "w" indicates that you're writing strings to the file
                
         # open the CSV file
         ifile = open(file_, "rU")
@@ -443,7 +473,7 @@ def create_multiple_calendar_data_from_wholefolder_forexfactory_format(folder_na
         file_basename = os.path.basename(file_)
         print("{0} ==> processing file {1}: {2} ...".format(time_stamp, file_index, file_basename))
          
-        file_name = convert_backflash2forwardflash_change_output_folder(file_)
+        file_name_year_log_backtest = convert_backflash2forwardflash_change_output_folder(file_)
           
         if (file_index % 10 == DEFAULT_NUMBER_INT):
             perc = round((float(file_index) / float(len(allFiles))) * float(100), 2)
@@ -451,7 +481,7 @@ def create_multiple_calendar_data_from_wholefolder_forexfactory_format(folder_na
             print("{0} ... ==> processing {1}% of the data...".format(time_stamp, perc))
            
         # write an array to a CSV file
-        csv_new_row_write = open(file_name, "w")  # "w" indicates that you're writing strings to the file
+        csv_new_row_write = open(file_name_year_log_backtest, "w")  # "w" indicates that you're writing strings to the file
                
         # open the CSV file
         ifile = open(file_, "rU")
@@ -529,15 +559,15 @@ def create_multiple_tick_data_from_wholefolder_pepperstone_format(folder_name):
     for file_ in allFiles:
         print("==> processing file {0}...".format(file_index))
         
-        file_name = convert_backflash2forwardflash_change_output_folder(file_)
+        file_name_year_log_backtest = convert_backflash2forwardflash_change_output_folder(file_)
          
         if (file_index % 10 == DEFAULT_NUMBER_INT):
             perc = round((float(file_index) / float(len(allFiles))) * float(100), 2)
             print("... ==> processing {0}% of the data...".format(perc))
           
         # write an array to a CSV file
-        csv_new_row_write = open(file_name, "w")  # "w" indicates that you're writing strings to the file
-        csv_date_dict = open(file_name.replace(".csv", "_date_dict.csv"), "w")  # "w" indicates that you're writing strings to the file
+        csv_new_row_write = open(file_name_year_log_backtest, "w")  # "w" indicates that you're writing strings to the file
+        csv_date_dict = open(file_name_year_log_backtest.replace(".csv", "_date_dict.csv"), "w")  # "w" indicates that you're writing strings to the file
               
         # open the CSV file
         ifile = open(file_, "rU")
@@ -662,13 +692,13 @@ def load_wholefolder2array(folder_name):
 
    
 #===============================================================================
-def load_csv2array(file_name):    
+def load_csv2array(file_name_year_log_backtest):    
     
     # convert the back flash with forward flash (just in case)
-    file_name = convert_backflash2forwardflash(file_name)
+    file_name_year_log_backtest = convert_backflash2forwardflash(file_name_year_log_backtest)
     
     # open the CSV file
-    ifile = open(file_name, "rU")
+    ifile = open(file_name_year_log_backtest, "rU")
     reader = csv.reader(ifile, delimiter=",")
 
     # put the CSV into an array
@@ -780,17 +810,17 @@ def get_subset_data(origin_data, subtract_list_string):
 
 
 #===============================================================================
-def write_array2csv_with_delimiter_no_header(array, file_name, delimiter):
+def write_array2csv_with_delimiter_no_header(array, file_name_year_log_backtest, delimiter):
      
     # # convert the back flash with forward flash (just in case)
-    file_name = convert_backflash2forwardflash(file_name)
+    file_name_year_log_backtest = convert_backflash2forwardflash(file_name_year_log_backtest)
     
     # If applicable, delete the existing file to generate a fresh file during each execution
-    if path.isfile(file_name):
-        remove(file_name)
+    if path.isfile(file_name_year_log_backtest):
+        remove(file_name_year_log_backtest)
      
     # write an array to a CSV file
-    csv = open(file_name, "w")  # "w" indicates that you're writing strings to the file
+    csv = open(file_name_year_log_backtest, "w")  # "w" indicates that you're writing strings to the file
     
     for i in range(len(array)):
         sMyArray = [str(j) for j in array[i]]
@@ -799,51 +829,51 @@ def write_array2csv_with_delimiter_no_header(array, file_name, delimiter):
 
 
 #===============================================================================
-def write_wholedict2csv_no_header(dictionary_out, file_name):
+def write_wholedict2csv_no_header(dictionary_out, file_name_year_log_backtest):
      
     # convert the back flash with forward flash (just in case)
-    file_name = convert_backflash2forwardflash(file_name)
+    file_name_year_log_backtest = convert_backflash2forwardflash(file_name_year_log_backtest)
     
     # If applicable, delete the existing file to generate a fresh file during each execution
-    if path.isfile(file_name):
-        remove(file_name)
+    if path.isfile(file_name_year_log_backtest):
+        remove(file_name_year_log_backtest)
      
     # write a dictionary to a CSV file
-    with open(file_name, 'wb') as csv_file:
+    with open(file_name_year_log_backtest, 'wb') as csv_file:
         writer = csv.writer(csv_file)
         for key, value in dictionary_out.items():
             writer.writerow([key, value])
 
 
 #===============================================================================
-def write_value_of_dict2csv_no_header(dictionary_out, file_name):
+def write_value_of_dict2csv_no_header(dictionary_out, file_name_year_log_backtest):
      
     # convert the back flash with forward flash (just in case)
-    file_name = convert_backflash2forwardflash(file_name)
+    file_name_year_log_backtest = convert_backflash2forwardflash(file_name_year_log_backtest)
     
     # If applicable, delete the existing file to generate a fresh file during each execution
-    if path.isfile(file_name):
-        remove(file_name)
+    if path.isfile(file_name_year_log_backtest):
+        remove(file_name_year_log_backtest)
      
     # write a dictionary to a CSV file
-    with open(file_name, 'wb') as csv_file:
+    with open(file_name_year_log_backtest, 'wb') as csv_file:
         writer = csv.writer(csv_file)
         for key, value in dictionary_out.items():
             writer.writerow(value)
 
 
 #===============================================================================
-def write_list_of_dicts_no_header(list_of_dicts, file_name):
+def write_list_of_dicts_no_header(list_of_dicts, file_name_year_log_backtest):
      
     # convert the back flash with forward flash (just in case)
-    file_name = convert_backflash2forwardflash(file_name)
+    file_name_year_log_backtest = convert_backflash2forwardflash(file_name_year_log_backtest)
     
     # If applicable, delete the existing file to generate a fresh file during each execution
-    if path.isfile(file_name):
-        remove(file_name)
+    if path.isfile(file_name_year_log_backtest):
+        remove(file_name_year_log_backtest)
      
     # write a dictionary to a CSV file
-    with open(file_name, 'wb') as csv_file:
+    with open(file_name_year_log_backtest, 'wb') as csv_file:
         writer = csv.writer(csv_file)
         for dictionary_out in list_of_dicts:
             for key, value in dictionary_out.items():
@@ -1082,13 +1112,15 @@ def convert_datetime_back_whole_list(file_name_out):
 ''' LOAD HARDCODED DATA '''
 
 
-# # TODO: Run 2 times for 2 formats: 2005-2009 & 2010-2017
-# # Create TICK_DATA with Modification from Original Tick Data CSV file WITH milliseconds
-# # --> format the date time as expected WITH millisecond (Note: need to do 2 time with columns format from from 2005 to 2009 VS from 2010 to 2017)
-# FOLDER_TICK_DATA_ORIGINAL = '/EURUSD_2006_2017_GAINCapital_Original_with_milliseconds_DTcol_2'
-# MARKET_TIME_STANDARD = '1970.01.01_00:00:00.000'
-# DATETIME_FORMAT = '%Y.%m.%d_%H:%M:%S.%f'
-# create_multiple_tick_data_from_wholefolder_gaincapital_format(FOLDER_DATA_INPUT + SYMBOL + FOLDER_TICK_DATA_ORIGINAL)
+# TODO: Run 2 times for 2 formats: 2005-2009 & 2010-2017
+# Create TICK_DATA with Modification from Original Tick Data CSV file WITH milliseconds
+# --> format the date time as expected WITH millisecond (Note: need to do 2 time with columns format from from 2005 to 2009 VS from 2010 to 2017)
+FOLDER_TICK_DATA_ORIGINAL = '/EURUSD_2006_2017_GAINCapital_Original_with_milliseconds_DTcol_2'
+
+
+MARKET_TIME_STANDARD = '1970.01.01_00:00:00.000'
+DATETIME_FORMAT = '%Y.%m.%d_%H:%M:%S.%f'
+create_multiple_tick_data_from_wholefolder_gaincapital_format(FOLDER_DATA_INPUT + SYMBOL + FOLDER_TICK_DATA_ORIGINAL)
 #  
 # # TODO: Run 2 times for 2 formats: 2005-2009 & 2010-2017
 # # Create TICK_DATA with Modification from Original Tick Data CSV file WITHOUT milliseconds
@@ -1103,7 +1135,6 @@ def convert_datetime_back_whole_list(file_name_out):
 # # Create CALENDAR_DATA with Modification from Original Calendar Data CSV file WITHOUT milliseconds
 # create_multiple_calendar_data_from_wholefolder_forexfactory_format(FOLDER_DATA_INPUT + FOLDER_CALENDAR_DATA_ORIGINAL)
 '''==============================================================================='''
-
 
 time_stamp = datetime.now().strftime(TIME_STAMP_FORMAT)
 log.info("==> Load DEFAULT_PARAMETERS_DATA: %s ..." % (FOLDER_DATA_INPUT + FILENAME_PARAMETER_DEFAULT))
@@ -3073,7 +3104,7 @@ class HappyForexEA(object):
     def analised_tick_data(self, PARAMETERS_DATA, folder_output, file_):
         
         # get the file name
-        file_name = convert_backflash2forwardflash(file_)
+        file_name_year_log_backtest = convert_backflash2forwardflash(file_)
         file_basename = str(os.path.basename(file_))
         
         ''' For EA running by itself 
@@ -3083,7 +3114,7 @@ class HappyForexEA(object):
         '''
         
         # Create TICK_DATA from the Modified CSV file
-        TICK_DATA = load_csv2array(file_name)
+        TICK_DATA = load_csv2array(file_name_year_log_backtest)
         DIGITS = digit_of_symbol(float(TICK_DATA[DEFAULT_NUMBER_INT][BID_COL_INDEX]))
         POINT = point_of_symbol(float(TICK_DATA[DEFAULT_NUMBER_INT][BID_COL_INDEX]))
         
@@ -3246,14 +3277,13 @@ class HappyForexEA(object):
 #         self.PARAMETERS_DATA = copy_string_array(PARAMETERS_DATA)
         
         # Create an folder for storing all outputs in this section 
-        symbol_folder_output = FOLDER_DATA_OUTPUT + SYMBOL
+        symbol_folder_output = FOLDER_DATA_OUTPUT + SYMBOL + '/' + str(RUN_FREQUENCY_BY_YEAR) + 'years'
         if os.path.exists(symbol_folder_output) == False:
             os.makedirs(symbol_folder_output)
         
         folder_output = symbol_folder_output + '/ind_' + str(individual_ID) + '_outputs/'
-        if os.path.exists(folder_output):
-            shutil.rmtree(folder_output)
-        os.makedirs(folder_output)
+        if os.path.exists(folder_output) == False:
+            os.makedirs(folder_output)
         
         # Access the input folder to get the Tick Data
         folder_name = convert_backflash2forwardflash(FOLDER_DATA_INPUT + SYMBOL + FOLDER_TICK_DATA_MODIFIED)
@@ -3911,7 +3941,10 @@ class HappyForexGenericAlgorithm(object):
         happyforexGA = HappyForexGenericAlgorithm()
         
         # Create an folder for storing all outputs in this section 
-        folder_output = FOLDER_DATA_OUTPUT + SYMBOL + '_optimization_output/'
+        folder_output = convert_backflash2forwardflash(FOLDER_DATA_OUTPUT + SYMBOL + '/' 
+                                                       + str(RUN_FREQUENCY_BY_YEAR) 
+                                                       + 'years/optimization_output/')
+        print("==> folder_output %s" % folder_output)
         if os.path.exists(folder_output):
             shutil.rmtree(folder_output)
         os.makedirs(folder_output)
@@ -4174,11 +4207,48 @@ if __name__ == "__main__":
     
     #===============================================================================
     ''' RUNNING WHOLE EA WITH GENETIC OPTIMIZATION WITH LOG AND PROFILE '''
-    # If applicable, delete the existing log file to generate a fresh log file during each execution
-    if path.isfile(FOLDER_DATA_OUTPUT + FILENAME_LOG_BACKTEST):
-        remove(FOLDER_DATA_OUTPUT + FILENAME_LOG_BACKTEST)
-         
-    handler = logging.handlers.WatchedFileHandler(os.environ.get("LOGFILE", FOLDER_DATA_OUTPUT + FILENAME_LOG_BACKTEST))
+    
+    # get RUN_FREQUENCY_BY_YEAR
+    print("==> RUN_FREQUENCY_BY_YEAR: %s" % len(sys.argv[1:]))
+        
+    if (len(sys.argv[1:]) == DEFAULT_NUMBER_INT):
+        RUN_FREQUENCY_BY_YEAR = 1
+        year_ouput = '1years'
+        
+    else:
+        RUN_FREQUENCY_BY_YEAR = sys.argv[1:][DEFAULT_NUMBER_INT]
+        
+        if (str(RUN_FREQUENCY_BY_YEAR) == RUN_FREQUENCY_1_YEAR
+            or str(RUN_FREQUENCY_BY_YEAR) == RUN_FREQUENCY_3_YEAR
+            or str(RUN_FREQUENCY_BY_YEAR) == RUN_FREQUENCY_5_YEAR
+            or str(RUN_FREQUENCY_BY_YEAR) == RUN_FREQUENCY_7_YEAR
+            or str(RUN_FREQUENCY_BY_YEAR) == RUN_FREQUENCY_9_YEAR):
+        
+            year_ouput = str(RUN_FREQUENCY_BY_YEAR) + 'years'
+        else:
+            RUN_FREQUENCY_BY_YEAR = 1
+            year_ouput = '1years'
+    
+    # create the folder_year_output
+    folder_year_output = convert_backflash2forwardflash(FOLDER_DATA_OUTPUT + SYMBOL 
+                                                        + '/' + year_ouput + '/')
+    print"==> folder_year_output: %s" % (folder_year_output)
+    if os.path.exists(folder_year_output):
+        shutil.rmtree(folder_year_output)  # --> delete folder
+    os.makedirs(folder_year_output)
+    
+    # set up log file        
+    file_name_year_log_backtest = replace_string(convert_backflash2forwardflash(FILENAME_LOG_BACKTEST)
+                                                 , ".log"
+                                                 , "_" + str(year_ouput) + ".log")
+    print"==> file_name_year_log_backtest: %s" % (file_name_year_log_backtest)
+    
+    # --> if applicable, delete the existing log file to generate a fresh log file during each execution
+    if path.isfile(file_name_year_log_backtest):
+        remove(file_name_year_log_backtest)
+    
+    # --> create a handle for log file
+    handler = logging.handlers.WatchedFileHandler(os.environ.get("LOGFILE", file_name_year_log_backtest))
      
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
@@ -4188,31 +4258,13 @@ if __name__ == "__main__":
     root.addHandler(handler)
      
     try:
-        print("==> RUN_FREQUENCY_BY_YEAR: %s" % len(sys.argv[1:]))
-        
-        # get RUN_FREQUENCY_BY_YEAR
-        if (len(sys.argv[1:]) == DEFAULT_NUMBER_INT):
-            # create an instance GA for running 
-            happyforex_GA_instance = HappyForexGenericAlgorithm()
-                      
-            # running whole EA with optimization
-            cProfile.run('happyforex_GA_instance.ga_run(1)', FOLDER_DATA_OUTPUT + FILENAME_PROFILE_BACKTEST)
-        else:
-            for RUN_FREQUENCY_BY_YEAR in sys.argv[1:]:
-                if (str(RUN_FREQUENCY_BY_YEAR) == RUN_FREQUENCY_1_YEAR
-                    or str(RUN_FREQUENCY_BY_YEAR) == RUN_FREQUENCY_3_YEAR
-                    or str(RUN_FREQUENCY_BY_YEAR) == RUN_FREQUENCY_5_YEAR
-                    or str(RUN_FREQUENCY_BY_YEAR) == RUN_FREQUENCY_7_YEAR
-                    or str(RUN_FREQUENCY_BY_YEAR) == RUN_FREQUENCY_9_YEAR):
-                    
-                    # create an instance GA for running 
-                    happyforex_GA_instance = HappyForexGenericAlgorithm()
-                              
-                    # running whole EA with optimization
-                    cProfile.run('happyforex_GA_instance.ga_run(' + str(RUN_FREQUENCY_BY_YEAR) + ')'
-                                 , FOLDER_DATA_OUTPUT + FILENAME_PROFILE_BACKTEST)
-                    
-                    break
+        # create an instance GA for running 
+        happyforex_GA_instance = HappyForexGenericAlgorithm()
+                  
+        # running whole EA with optimization
+        cProfile.run('happyforex_GA_instance.ga_run(' + str(RUN_FREQUENCY_BY_YEAR) + ')'
+                     , file_name_year_log_backtest)
+                
     except Exception:
         logging.exception("Exception in main")
         exit(1) 

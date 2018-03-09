@@ -11,8 +11,8 @@ from os import path
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from StrategyTesterModule.happyforex_ST import HappyForexEA
-from DataHandler.hardcoded_data import DEFAULT_NUMBER_INT, DEFAULT_SECOND_NUMBER_INT, \
+from happyforex_optimization import HappyForexEA
+from happyforex_optimization import DEFAULT_NUMBER_INT, DEFAULT_SECOND_NUMBER_INT, \
     OP_BUY, OP_BUYLIMIT, MARKET_TIME_STANDARD, DATETIME_FORMAT, LOTS_COL_INDEX, \
     DATETIME_COL_INDEX, OP_SELL, PROFIT_COL_INDEX, ORDER_TYPE_COL_INDEX, \
     convert_backflash2forwardflash, number_after_decimal, display_an_dict_with_delimiter, float_checker, \
