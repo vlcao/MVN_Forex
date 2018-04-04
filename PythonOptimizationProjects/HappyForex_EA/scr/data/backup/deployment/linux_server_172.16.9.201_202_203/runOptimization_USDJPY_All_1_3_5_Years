@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Remove all running all year symbols
+kill -9 `ps -ef | grep synergista* | grep -v grep | awk '{print $2}'`
+kill -9 `ps -ef | grep synergista* | grep -v grep | awk '{print $2}'`
+
+# Set permission for the executable file
+cd /home/app/synergista/ 
+chmod u+x synergista_optimization 
+
+# Run symbol USDJPY
+nohup ./synergista_optimization USDJPY 1 &
+nohup ./synergista_optimization USDJPY 3 &
+nohup ./synergista_optimization USDJPY 5 &
+
+# Check all processes
+ps ux | grep synergista*
